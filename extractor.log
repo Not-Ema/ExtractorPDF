@@ -1866,3 +1866,25 @@ RuntimeError: main thread is not in main loop
 2025-10-15 15:53:35,963 - extractor - INFO - Data extracted successfully for 5781898 SIRIS JIMENEZ CARDONA.pdf
 2025-10-15 15:53:35,970 - extractor - INFO - Data extracted successfully for 5802902 MARGARITA ISABEL QUINTANA CADENA.pdf
 2025-10-15 15:53:36,020 - extractor - INFO - Data written to C:/Users/DELL/Downloads/Cupones/22222.xlsx with 21 records
+2025-10-15 16:55:05,155 - extractor - INFO - Data extracted successfully for 2119358633 MARIELA LUZ MONTES OVIEDO.pdf
+2025-10-15 16:55:05,229 - extractor - INFO - Data extracted successfully for 2118192789ALBERTO POLO VILLERO.pdf
+2025-10-15 16:55:05,537 - extractor - INFO - Data extracted successfully for 2119194137 DILIA CARO DE POSSO.pdf
+2025-10-15 16:55:06,039 - extractor - INFO - Data extracted successfully for 4377488 MARTHA TORRES BELEÑO.pdf
+2025-10-15 16:55:06,515 - extractor - INFO - Data extracted successfully for 4391620 JORGE SOTO FIGUEROA.pdf
+2025-10-15 16:55:07,090 - extractor - INFO - Data extracted successfully for 4669499 JAMER MIGUEL MARTINEZ ROMERO.pdf
+2025-10-15 16:55:07,421 - extractor - INFO - Data extracted successfully for 5081347 KELLY GAZABON RICARDO.pdf
+2025-10-15 16:55:07,835 - extractor - INFO - Data extracted successfully for 5017092 ARLET PUELLO SIERRA.pdf
+2025-10-15 16:55:08,186 - extractor - INFO - Data extracted successfully for 5190518 EDITH WATH CASTRO.pdf
+2025-10-15 16:55:08,571 - extractor - INFO - Data extracted successfully for 5210331 PABLA  POLO BELTRAN.pdf
+2025-10-15 16:55:09,544 - extractor - INFO - Data extracted successfully for 5308628 ANA MODESTA LARA HUETO.pdf
+2025-10-15 16:55:09,657 - extractor - INFO - Data extracted successfully for 5360393 EDUARDO ANTONIO RODRIGUEZ OVIE.pdf
+2025-10-15 16:55:09,950 - extractor - INFO - Data extracted successfully for 5475038 HERIBERTO CASTAÑEDA LOPEZ.pdf
+2025-10-15 16:55:10,196 - extractor - INFO - Data extracted successfully for 5499632 PEDRO RAFAEL MERIÑO FUENTES.pdf
+2025-10-15 16:55:10,320 - extractor - INFO - Data extracted successfully for 5593839 MARITZA BASILIO BELTRAN.pdf
+2025-10-15 16:55:10,327 - extractor - INFO - Data extracted successfully for 5617311 SHIRLY DIAZ CUETO.pdf
+2025-10-15 16:55:10,340 - extractor - INFO - Data extracted successfully for 5650970 ENRIQUE FIGUEROA ZABALETA.pdf
+2025-10-15 16:55:10,346 - extractor - INFO - Data extracted successfully for 5699061 KATY CASTILLO LARA.pdf
+2025-10-15 16:55:10,354 - extractor - INFO - Data extracted successfully for 5699064 KATY CASTILLO LARA.pdf
+2025-10-15 16:55:10,360 - extractor - INFO - Data extracted successfully for 5802902 MARGARITA ISABEL QUINTANA CADENA.pdf
+2025-10-15 16:55:10,370 - extractor - INFO - Data extracted successfully for 5781898 SIRIS JIMENEZ CARDONA.pdf
+2025-10-15 16:55:10,419 - extractor - INFO - Data written to C:/Users/DELL/Downloads/Cupones/123123123.xlsx with 21 records
