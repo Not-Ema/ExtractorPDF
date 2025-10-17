@@ -26,7 +26,9 @@ import pandas as pd
 DEFAULT_DPI = 600
 DEFAULT_LANG = "spa"
 # ------------------------------------
-
+# Ruta relativa al ejecutable portable
+TESSERACT_PATH = os.path.join(os.path.dirname(__file__), "tesseract", "tesseract.exe")
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
 # ---------- Helper: limpiar nombre de cliente ----------
 # ---------- Helper: limpiar nombre de cliente (mejorado) ----------
 def clean_client_name(name: str) -> str:
@@ -724,7 +726,18 @@ class OCRGui:
 
         # Poll queues
         root.after(200, self._poll_queues)
+    def check_for_updates(self):
+        self.log_message("🔍 Buscando actualizaciones...", "info")
+        updater = GitHubUpdater(logger=lambda msg: self.log_message(msg, "info"))
+        threading.Thread(target=updater.check, args=(self.on_update_check_complete,), daemon=True).start()
 
+    def on_update_check_complete(self, ok, msg):
+        self.root.after(0, lambda: self.log_message(msg, "success" if ok else "warning"))
+        if ok:
+            resp = messagebox.askyesno("🔄 Actualización disponible", f"{msg}\n\n¿Deseas aplicarla ahora?")
+            if resp:
+                self.log_message("⬇️ Aplicando actualización...", "info")
+            # La actualización ya fue aplicada por el updater, solo reinicia
     def setup_styles(self):
         style = ttk.Style()
         style.theme_use('clam')
@@ -758,29 +771,41 @@ class OCRGui:
         control_frame = ttk.LabelFrame(parent, text="🚀 Paso 3: Procesar Archivos", padding="10")
         control_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.start_button = ttk.Button(control_frame, text="▶️ Iniciar Extracción", command=self.start_processing, style='Success.TButton')
+        # Botón de inicio
+        self.start_button = ttk.Button(control_frame, text="▶️ Iniciar Extracción",
+                                    command=self.start_processing,
+                                    style='Success.TButton')
         self.start_button.pack(fill=tk.X, pady=(0, 10))
 
+        # Barra de progreso
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(control_frame, variable=self.progress_var, maximum=100, length=300)
+        self.progress_bar = ttk.Progressbar(control_frame, variable=self.progress_var,
+                                            maximum=100)
         self.progress_bar.pack(fill=tk.X, pady=(0, 10))
 
+        # Frame para botones secundarios
         button_frame = ttk.Frame(control_frame)
         button_frame.pack(fill=tk.X)
 
+        # Botón de actualización
+        update_btn = ttk.Button(button_frame, text="🔄 Actualizar",
+                                command=self.check_for_updates,
+                                style='Primary.TButton')
+        update_btn.pack(side=tk.RIGHT, padx=(5, 0))
 
-        button_frame = ttk.Frame(control_frame)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
-
-        clear_btn = ttk.Button(button_frame, text="🧹 Limpiar Log", command=self.clear_log, style='Warning.TButton')
+        # Botones de limpiar log, ayuda y acerca de
+        clear_btn = ttk.Button(button_frame, text="🧹 Limpiar Log",
+                            command=self.clear_log,
+                            style='Warning.TButton')
         clear_btn.pack(side=tk.LEFT, padx=(0, 5))
 
-        help_btn = ttk.Button(button_frame, text="❓ Ayuda", command=self.show_help)
+        help_btn = ttk.Button(button_frame, text="❓ Ayuda",
+                            command=self.show_help)
         help_btn.pack(side=tk.LEFT, padx=(0, 5))
 
-        about_btn = ttk.Button(button_frame, text="ℹ️ Acerca de", command=self.show_about)
+        about_btn = ttk.Button(button_frame, text="ℹ️ Acerca de",
+                            command=self.show_about)
         about_btn.pack(side=tk.LEFT)
-
         
 
     def create_log_section(self, parent):
@@ -1491,11 +1516,11 @@ def open_save_browser(parent, title="Guardar archivo", start_path=None, suggeste
 class GitHubUpdater:
     """
     Checks & applies new releases from
-    https://api.github.com/repos/OWNER/REPO/releases/latest
+    https://github.com/repos/OWNER/REPO/releases/latest
     """
-    API_URL   = "https://api.github.com/repos/{owner}/{repo}/releases/latest"
-    OWNER     = "YOUR_GITHUB_USER"   # <── change here
-    REPO      = "YOUR_REPO_NAME"     # <── change here
+    API_URL   = "https://github.com/repos/{owner}/{repo}/releases/latest"
+    OWNER     = "Not-Ema"   # <── change here
+    REPO      = "ExtractorPDF"     # <── change here
     VERSION   = "v0.1.0"             # <── current version string
 
     def __init__(self, logger=None):
