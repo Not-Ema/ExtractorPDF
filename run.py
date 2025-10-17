@@ -19,7 +19,9 @@ def check_dependencies():
         'pandas': 'pandas',
         'openpyxl': 'openpyxl',
         'numpy': 'numpy',
-        'PIL': 'Pillow'
+        'PIL': 'Pillow',
+        'pdf2image': 'pdf2image',
+        'pytesseract': 'pytesseract'
     }
     
     for module, package in required_packages.items():
@@ -78,15 +80,15 @@ def load_config():
         }
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(default_config, f, indent=2, ensure_ascii=False)
-        print("✅ Archivo de configuración creado")
-    
+        print("Archivo de configuracion creado")
+
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
-        print("✅ Configuración cargada")
+        print("Configuracion cargada")
         return config
     except Exception as e:
-        print(f"❌ Error cargando configuración: {e}")
+        print(f"Error cargando configuracion: {e}")
         sys.exit(1)
 
 def main():

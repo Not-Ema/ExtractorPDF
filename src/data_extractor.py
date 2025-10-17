@@ -1,6 +1,7 @@
 import re
 import json
 from .logger import logger
+from .ocr_processor import OCRProcessor
 
 class DataExtractor:
     def __init__(self, config_path='config/config.json'):
@@ -8,6 +9,7 @@ class DataExtractor:
             self.config = json.load(f)
         self.patterns = self.config['extraction_patterns']
         self.fields = self.config['fields']
+        self.ocr_processor = OCRProcessor(config_path)
 
     def extract_data(self, text, filename):
         """Extract data from text using configured patterns."""
@@ -15,12 +17,41 @@ class DataExtractor:
         data['Archivo Origen'] = filename
 
         try:
-            # Normalize text artifacts and whitespace
-            text = self._normalize_text(text)
+            # Check if this is a scan that couldn't be processed
+            if text == "SCAN":
+                logger.warning(f"File {filename} is a scan that couldn't be processed with OCR")
+                data['error'] = 'Archivo es un scan y no se pudo procesar con OCR'
+                return data
 
-            # Try standard extraction first
-            extracted = self._extract_standard(text)
-            data.update(extracted)
+            # Check if text looks like OCR output (has OCR artifacts)
+            if self._is_ocr_text(text):
+                logger.info(f"Using OCR-specific extraction for {filename}")
+                # Use OCR extraction logic directly for scanned PDFs
+                ocr_data = self.ocr_processor.extract_fields_from_ocr_text(text)
+                # Map OCR field names to standard field names
+                field_mapping = {
+                    'Cliente': 'Cliente',
+                    'Identificacion': 'Identificación',
+                    'Contrato': 'Contrato',
+                    'DirCliente': 'Dirección',
+                    'NoSolicitud': 'No. Solicitud',
+                    'NoRefPago': 'No. Rel. Pago',
+                    'TipoCupon': 'Tipo de Cupón',
+                    'ValidoHasta': 'Valido hasta',
+                    'ValorAPagar': 'Valor a Pagar',
+                    'CodigoBarraLimpio': 'Codigo de Barras Limpio',
+                    'CodigoBarraRaw': None  # This field is not in the standard output
+                }
+                for ocr_field, std_field in field_mapping.items():
+                    if ocr_data.get(ocr_field) is not None and ocr_data.get(ocr_field) != '':
+                        data[std_field] = ocr_data[ocr_field]
+                return data
+            else:
+                # Use standard extraction for digital PDFs
+                text = self._normalize_text(text)
+                extracted = self._extract_standard(text)
+                data.update(extracted)
+                return data
 
             # Additional fallbacks for common edge cases
             if data.get('Contrato') == 'No encontrado':
@@ -245,3 +276,25 @@ class DataExtractor:
             return digits
         except Exception:
             return "No encontrado"
+
+    def _is_ocr_text(self, text):
+        """Check if text appears to be OCR output (has OCR artifacts)."""
+        if not text:
+            return False
+
+        # OCR text often has:
+        # - Many short lines
+        # - Inconsistent spacing
+        # - Character recognition errors (like 0 instead of O)
+        # - Lower case letters mixed with upper case in unexpected ways
+
+        lines = text.split('\n')
+        short_lines = sum(1 for line in lines if len(line.strip()) < 10)
+        short_line_ratio = short_lines / len(lines) if lines else 0
+
+        # Check for OCR common errors
+        ocr_errors = re.findall(r'\b\d+[A-Z]+\d*\b', text)  # Numbers mixed with letters
+        error_ratio = len(ocr_errors) / len(text.split()) if text.split() else 0
+
+        # If many short lines or OCR-like errors, likely OCR text
+        return short_line_ratio > 0.5 or error_ratio > 0.1

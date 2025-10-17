@@ -31,6 +31,10 @@ class ExtractorApp:
         self.extractor = DataExtractor()
         self.writer = DataWriter()
 
+        # OCR settings
+        self.save_ocr_text = tk.BooleanVar(value=False)
+        self.ocr_text_dir = tk.StringVar(value=os.path.join(os.getcwd(), "ocr_texts"))
+
         # Variables
         self.input_folder = ""
         self.output_file = ""
@@ -100,6 +104,18 @@ class ExtractorApp:
 
         button_frame = ttk.Frame(control_frame)
         button_frame.pack(fill=tk.X)
+
+        # OCR settings
+        ocr_frame = ttk.Frame(control_frame)
+        ocr_frame.pack(fill=tk.X, pady=(10, 0))
+        ttk.Checkbutton(ocr_frame, text="Guardar OCR .txt por PDF (para PDFs escaneados)", variable=self.save_ocr_text).pack(anchor="w")
+        ocr_dir_frame = ttk.Frame(ocr_frame)
+        ocr_dir_frame.pack(fill=tk.X, pady=(5, 0))
+        ttk.Entry(ocr_dir_frame, textvariable=self.ocr_text_dir, width=50).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(ocr_dir_frame, text="📁", command=self.select_ocr_text_dir, width=3).pack(side=tk.LEFT)
+
+        button_frame = ttk.Frame(control_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
 
         clear_btn = ttk.Button(button_frame, text="🧹 Limpiar Log", command=self.clear_log, style='Warning.TButton')
         clear_btn.pack(side=tk.LEFT, padx=(0, 5))
@@ -226,7 +242,15 @@ class ExtractorApp:
                                   self._update_progress(fn, None, p, pc, tf))
 
             # Process PDFs concurrently
-            self.processor.process_pdfs_concurrent(pdf_files, progress_callback)
+            save_ocr_text = self.save_ocr_text.get()
+            ocr_text_dir = self.ocr_text_dir.get().strip() if save_ocr_text else None
+
+            # Set OCR settings in processor
+            if hasattr(self.processor, 'ocr_processor'):
+                self.processor.ocr_processor.save_ocr_text = save_ocr_text
+                self.processor.ocr_processor.ocr_text_dir = ocr_text_dir
+
+            self.processor.process_pdfs_concurrent(pdf_files, progress_callback, save_ocr_text=save_ocr_text, ocr_text_dir=ocr_text_dir)
 
             # Schedule final UI updates on main thread
             self.root.after(0, lambda: self._finalize_processing(data_list, errors_count, scan_count, total_files))
@@ -300,7 +324,7 @@ class ExtractorApp:
         """Update progress bar and log for scans."""
         self.progress_var.set(progress)
         self.log_message(f"📖 ({processed_count}/{total_files}) Procesando: {filename}", "info")
-        self.log_message("   📄 Archivo es un scan y no se procesa", "warning")
+        self.log_message("   📄 Archivo es un scan - procesando con OCR", "warning")
         self.root.update_idletasks()
 
     def _update_progress(self, filename, text, progress, processed_count, total_files):
@@ -344,7 +368,8 @@ class ExtractorApp:
 
 1️⃣ Selecciona la carpeta que contiene los archivos PDF
 2️⃣ Elige dónde guardar el archivo Excel/CSV de salida
-3️⃣ Haz clic en 'Iniciar Extracción' y espera
+3️⃣ Opcional: Activa guardar archivos OCR .txt para PDFs escaneados
+4️⃣ Haz clic en 'Iniciar Extracción' y espera
 
 📋 CAMPOS EXTRAÍDOS:
 • Cliente
@@ -359,11 +384,17 @@ class ExtractorApp:
 • Código de Barras
 
 💡 CONSEJOS:
-• Los PDFs pueden ser digitales o escaneados
+• Los PDFs pueden ser digitales o escaneados (OCR automático)
 • Se pueden procesar múltiples archivos a la vez
 • Los datos se agregan al Excel/CSV existente
+• Para PDFs escaneados, el OCR puede tardar más tiempo
         """
         messagebox.showinfo("❓ Ayuda", help_text)
+
+    def select_ocr_text_dir(self):
+        d = filedialog.askdirectory(title="📁 Seleccionar carpeta para guardar archivos OCR (.txt)")
+        if d:
+            self.ocr_text_dir.set(d)
 
     def show_about(self):
         about_text = """
@@ -371,6 +402,7 @@ class ExtractorApp:
 
 🎯 CARACTERÍSTICAS:
 • Extracción automática de datos de PDFs
+• Soporte OCR para PDFs escaneados
 • Interfaz intuitiva y amigable
 • Procesamiento concurrente para escalabilidad
 • Barra de progreso en tiempo real
@@ -379,6 +411,7 @@ class ExtractorApp:
 🛠️ TECNOLOGÍAS:
 • Python 3.x
 • pdfplumber (extracción de texto)
+• pytesseract + Tesseract OCR (PDFs escaneados)
 • pandas (manejo de datos)
 • tkinter (interfaz gráfica)
 

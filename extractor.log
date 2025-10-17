@@ -1888,3 +1888,161 @@ RuntimeError: main thread is not in main loop
 2025-10-15 16:55:10,360 - extractor - INFO - Data extracted successfully for 5802902 MARGARITA ISABEL QUINTANA CADENA.pdf
 2025-10-15 16:55:10,370 - extractor - INFO - Data extracted successfully for 5781898 SIRIS JIMENEZ CARDONA.pdf
 2025-10-15 16:55:10,419 - extractor - INFO - Data written to C:/Users/DELL/Downloads/Cupones/123123123.xlsx with 21 records
+2025-10-16 21:37:53,532 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\4400752.pdf appears to be a scan, using OCR
+2025-10-16 21:37:53,882 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\3571190.pdf appears to be a scan, using OCR
+2025-10-16 21:37:54,234 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5589623.pdf appears to be a scan, using OCR
+2025-10-16 21:37:54,394 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5648508.pdf appears to be a scan, using OCR
+2025-10-16 21:38:01,283 - extractor - INFO - Data extracted successfully for 4400752.pdf
+2025-10-16 21:38:01,296 - extractor - INFO - Data extracted successfully for 5589623.pdf
+2025-10-16 21:38:01,711 - extractor - INFO - Data extracted successfully for 5648508.pdf
+2025-10-16 21:38:03,772 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\CARMEN SANCHEZ ALVARADO.pdf appears to be a scan, using OCR
+2025-10-16 21:38:03,904 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EDNA CARMEN TORRES PEREZ.pdf appears to be a scan, using OCR
+2025-10-16 21:38:04,085 - extractor - INFO - Data extracted successfully for 3571190.pdf
+2025-10-16 21:38:04,500 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ERIKA PATRICIA MARTINEZ RUA.pdf appears to be a scan, using OCR
+2025-10-16 21:38:05,430 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ESTEBANA DIAZ BERRIO.pdf appears to be a scan, using OCR
+2025-10-16 21:38:11,205 - extractor - INFO - Data extracted successfully for ERIKA PATRICIA MARTINEZ RUA.pdf
+2025-10-16 21:38:11,769 - extractor - INFO - Data extracted successfully for EDNA CARMEN TORRES PEREZ.pdf
+2025-10-16 21:38:11,846 - extractor - INFO - Data extracted successfully for CARMEN SANCHEZ ALVARADO.pdf
+2025-10-16 21:38:12,367 - extractor - INFO - Data extracted successfully for ESTEBANA DIAZ BERRIO.pdf
+2025-10-16 21:38:13,092 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EUCLIDES LOPEZ CAMPO.pdf appears to be a scan, using OCR
+2025-10-16 21:38:14,870 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARIA MERCADO MACARENO.pdf appears to be a scan, using OCR
+2025-10-16 21:38:15,349 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS NIETO MENDOZA.pdf appears to be a scan, using OCR
+2025-10-16 21:38:15,389 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS MIGUEL RODELO REYES.pdf appears to be a scan, using OCR
+2025-10-16 21:38:19,597 - extractor - INFO - Data extracted successfully for EUCLIDES LOPEZ CAMPO.pdf
+2025-10-16 21:38:20,736 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARMOL DE RODRIGUEZ CANDIDA.pdf appears to be a scan, using OCR
+2025-10-16 21:38:21,559 - extractor - INFO - Data extracted successfully for LUIS NIETO MENDOZA.pdf
+2025-10-16 21:38:22,260 - extractor - INFO - Data extracted successfully for LUIS MIGUEL RODELO REYES.pdf
+2025-10-16 21:38:22,430 - extractor - INFO - Data extracted successfully for MARIA MERCADO MACARENO.pdf
+2025-10-16 21:38:22,669 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARTA CARDENAS ROYET.pdf appears to be a scan, using OCR
+2025-10-16 21:38:24,205 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MERCEDES ELENA REYES MONTAÑEZ.pdf appears to be a scan, using OCR
+2025-10-16 21:38:24,779 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARY MORENO BALLESTERO.pdf appears to be a scan, using OCR
+2025-10-16 21:38:27,884 - extractor - INFO - Data extracted successfully for MARMOL DE RODRIGUEZ CANDIDA.pdf
+2025-10-16 21:38:29,454 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\RESTAURANTE SANCOCHO DE GALLINA.pdf appears to be a scan, using OCR
+2025-10-16 21:38:30,999 - extractor - INFO - Data extracted successfully for MARTA CARDENAS ROYET.pdf
+2025-10-16 21:38:31,189 - extractor - INFO - Data extracted successfully for MERCEDES ELENA REYES MONTAÑEZ.pdf
+2025-10-16 21:38:31,249 - extractor - INFO - Data extracted successfully for MARY MORENO BALLESTERO.pdf
+2025-10-16 21:38:32,700 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\YOLIMAIRA MIRANDA ACEVEDO.pdf appears to be a scan, using OCR
+2025-10-16 21:38:33,134 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\yudis isabel peñaloza.pdf appears to be a scan, using OCR
+2025-10-16 21:38:33,340 - extractor - INFO - Data extracted successfully for RESTAURANTE SANCOCHO DE GALLINA.pdf
+2025-10-16 21:38:36,844 - extractor - INFO - Data extracted successfully for YOLIMAIRA MIRANDA ACEVEDO.pdf
+2025-10-16 21:38:36,949 - extractor - INFO - Data extracted successfully for yudis isabel peñaloza.pdf
+2025-10-16 21:38:36,993 - extractor - INFO - Data written to C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B/123.xlsx with 19 records
+2025-10-16 21:42:03,475 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5589623.pdf appears to be a scan, using OCR
+2025-10-16 21:42:03,880 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\3571190.pdf appears to be a scan, using OCR
+2025-10-16 21:42:03,933 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5648508.pdf appears to be a scan, using OCR
+2025-10-16 21:42:04,068 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\4400752.pdf appears to be a scan, using OCR
+2025-10-16 21:42:09,954 - extractor - INFO - Data extracted successfully for 4400752.pdf
+2025-10-16 21:42:10,321 - extractor - INFO - Data extracted successfully for 5648508.pdf
+2025-10-16 21:42:10,597 - extractor - INFO - Data extracted successfully for 3571190.pdf
+2025-10-16 21:42:11,459 - extractor - INFO - Data extracted successfully for 5589623.pdf
+2025-10-16 21:42:11,676 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\CARMEN SANCHEZ ALVARADO.pdf appears to be a scan, using OCR
+2025-10-16 21:42:12,650 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EDNA CARMEN TORRES PEREZ.pdf appears to be a scan, using OCR
+2025-10-16 21:42:13,044 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ERIKA PATRICIA MARTINEZ RUA.pdf appears to be a scan, using OCR
+2025-10-16 21:42:13,781 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ESTEBANA DIAZ BERRIO.pdf appears to be a scan, using OCR
+2025-10-16 21:42:19,037 - extractor - INFO - Data extracted successfully for EDNA CARMEN TORRES PEREZ.pdf
+2025-10-16 21:42:19,663 - extractor - INFO - Data extracted successfully for ESTEBANA DIAZ BERRIO.pdf
+2025-10-16 21:42:19,773 - extractor - INFO - Data extracted successfully for CARMEN SANCHEZ ALVARADO.pdf
+2025-10-16 21:42:20,168 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EUCLIDES LOPEZ CAMPO.pdf appears to be a scan, using OCR
+2025-10-16 21:42:20,491 - extractor - INFO - Data extracted successfully for ERIKA PATRICIA MARTINEZ RUA.pdf
+2025-10-16 21:42:22,463 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS NIETO MENDOZA.pdf appears to be a scan, using OCR
+2025-10-16 21:42:22,760 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARIA MERCADO MACARENO.pdf appears to be a scan, using OCR
+2025-10-16 21:42:22,867 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS MIGUEL RODELO REYES.pdf appears to be a scan, using OCR
+2025-10-16 21:42:26,961 - extractor - INFO - Data extracted successfully for EUCLIDES LOPEZ CAMPO.pdf
+2025-10-16 21:42:28,038 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARMOL DE RODRIGUEZ CANDIDA.pdf appears to be a scan, using OCR
+2025-10-16 21:42:28,826 - extractor - INFO - Data extracted successfully for LUIS NIETO MENDOZA.pdf
+2025-10-16 21:42:29,764 - extractor - INFO - Data extracted successfully for MARIA MERCADO MACARENO.pdf
+2025-10-16 21:42:29,869 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARTA CARDENAS ROYET.pdf appears to be a scan, using OCR
+2025-10-16 21:42:29,884 - extractor - INFO - Data extracted successfully for LUIS MIGUEL RODELO REYES.pdf
+2025-10-16 21:42:31,632 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARY MORENO BALLESTERO.pdf appears to be a scan, using OCR
+2025-10-16 21:42:31,785 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MERCEDES ELENA REYES MONTAÑEZ.pdf appears to be a scan, using OCR
+2025-10-16 21:42:34,368 - extractor - INFO - Data extracted successfully for MARMOL DE RODRIGUEZ CANDIDA.pdf
+2025-10-16 21:42:36,109 - extractor - INFO - Data extracted successfully for MARTA CARDENAS ROYET.pdf
+2025-10-16 21:42:36,549 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\RESTAURANTE SANCOCHO DE GALLINA.pdf appears to be a scan, using OCR
+2025-10-16 21:42:37,478 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\YOLIMAIRA MIRANDA ACEVEDO.pdf appears to be a scan, using OCR
+2025-10-16 21:42:37,510 - extractor - INFO - Data extracted successfully for MERCEDES ELENA REYES MONTAÑEZ.pdf
+2025-10-16 21:42:37,514 - extractor - INFO - Data extracted successfully for MARY MORENO BALLESTERO.pdf
+2025-10-16 21:42:38,443 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\yudis isabel peñaloza.pdf appears to be a scan, using OCR
+2025-10-16 21:42:42,732 - extractor - INFO - Data extracted successfully for RESTAURANTE SANCOCHO DE GALLINA.pdf
+2025-10-16 21:42:42,771 - extractor - INFO - Data extracted successfully for YOLIMAIRA MIRANDA ACEVEDO.pdf
+2025-10-16 21:42:42,858 - extractor - INFO - Data extracted successfully for yudis isabel peñaloza.pdf
+2025-10-16 21:42:42,897 - extractor - INFO - Data written to C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B/123123.xlsx with 19 records
+2025-10-16 21:44:27,749 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5648508.pdf appears to be a scan, using OCR
+2025-10-16 21:44:28,466 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\3571190.pdf appears to be a scan, using OCR
+2025-10-16 21:44:28,544 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\4400752.pdf appears to be a scan, using OCR
+2025-10-16 21:44:28,789 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5589623.pdf appears to be a scan, using OCR
+2025-10-16 21:44:34,530 - extractor - INFO - Data extracted successfully for 5648508.pdf
+2025-10-16 21:44:35,407 - extractor - INFO - Data extracted successfully for 4400752.pdf
+2025-10-16 21:44:35,640 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\CARMEN SANCHEZ ALVARADO.pdf appears to be a scan, using OCR
+2025-10-16 21:44:35,641 - extractor - INFO - Data extracted successfully for 5589623.pdf
+2025-10-16 21:44:35,973 - extractor - INFO - Data extracted successfully for 3571190.pdf
+2025-10-16 21:44:37,958 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ESTEBANA DIAZ BERRIO.pdf appears to be a scan, using OCR
+2025-10-16 21:44:38,304 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ERIKA PATRICIA MARTINEZ RUA.pdf appears to be a scan, using OCR
+2025-10-16 21:44:38,407 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EDNA CARMEN TORRES PEREZ.pdf appears to be a scan, using OCR
+2025-10-16 21:44:42,310 - extractor - INFO - Data extracted successfully for CARMEN SANCHEZ ALVARADO.pdf
+2025-10-16 21:44:43,382 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EUCLIDES LOPEZ CAMPO.pdf appears to be a scan, using OCR
+2025-10-16 21:44:44,035 - extractor - INFO - Data extracted successfully for EDNA CARMEN TORRES PEREZ.pdf
+2025-10-16 21:44:44,688 - extractor - INFO - Data extracted successfully for ESTEBANA DIAZ BERRIO.pdf
+2025-10-16 21:44:44,812 - extractor - INFO - Data extracted successfully for ERIKA PATRICIA MARTINEZ RUA.pdf
+2025-10-16 21:44:45,146 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS MIGUEL RODELO REYES.pdf appears to be a scan, using OCR
+2025-10-16 21:44:46,807 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS NIETO MENDOZA.pdf appears to be a scan, using OCR
+2025-10-16 21:44:46,940 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARIA MERCADO MACARENO.pdf appears to be a scan, using OCR
+2025-10-16 21:44:50,588 - extractor - INFO - Data extracted successfully for EUCLIDES LOPEZ CAMPO.pdf
+2025-10-16 21:44:51,460 - extractor - INFO - Data extracted successfully for LUIS MIGUEL RODELO REYES.pdf
+2025-10-16 21:44:51,738 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARMOL DE RODRIGUEZ CANDIDA.pdf appears to be a scan, using OCR
+2025-10-16 21:44:52,698 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARTA CARDENAS ROYET.pdf appears to be a scan, using OCR
+2025-10-16 21:44:52,722 - extractor - INFO - Data extracted successfully for MARIA MERCADO MACARENO.pdf
+2025-10-16 21:44:52,733 - extractor - INFO - Data extracted successfully for LUIS NIETO MENDOZA.pdf
+2025-10-16 21:44:54,354 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MERCEDES ELENA REYES MONTAÑEZ.pdf appears to be a scan, using OCR
+2025-10-16 21:44:54,678 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARY MORENO BALLESTERO.pdf appears to be a scan, using OCR
+2025-10-16 21:44:59,199 - extractor - INFO - Data extracted successfully for MARMOL DE RODRIGUEZ CANDIDA.pdf
+2025-10-16 21:45:00,307 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\RESTAURANTE SANCOCHO DE GALLINA.pdf appears to be a scan, using OCR
+2025-10-16 21:45:00,327 - extractor - INFO - Data extracted successfully for MARTA CARDENAS ROYET.pdf
+2025-10-16 21:45:01,302 - extractor - INFO - Data extracted successfully for MERCEDES ELENA REYES MONTAÑEZ.pdf
+2025-10-16 21:45:01,494 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\YOLIMAIRA MIRANDA ACEVEDO.pdf appears to be a scan, using OCR
+2025-10-16 21:45:01,508 - extractor - INFO - Data extracted successfully for MARY MORENO BALLESTERO.pdf
+2025-10-16 21:45:02,495 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\yudis isabel peñaloza.pdf appears to be a scan, using OCR
+2025-10-16 21:45:06,794 - extractor - INFO - Data extracted successfully for YOLIMAIRA MIRANDA ACEVEDO.pdf
+2025-10-16 21:45:06,807 - extractor - INFO - Data extracted successfully for RESTAURANTE SANCOCHO DE GALLINA.pdf
+2025-10-16 21:45:07,439 - extractor - INFO - Data extracted successfully for yudis isabel peñaloza.pdf
+2025-10-16 21:45:07,476 - extractor - INFO - Data written to C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B/123123123.xlsx with 19 records
+2025-10-16 21:50:01,154 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\3571190.pdf appears to be a scan, using OCR
+2025-10-16 21:50:01,182 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\4400752.pdf appears to be a scan, using OCR
+2025-10-16 21:50:01,207 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5648508.pdf appears to be a scan, using OCR
+2025-10-16 21:50:01,252 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5589623.pdf appears to be a scan, using OCR
+2025-10-16 21:50:08,585 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\CARMEN SANCHEZ ALVARADO.pdf appears to be a scan, using OCR
+2025-10-16 21:50:10,745 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ERIKA PATRICIA MARTINEZ RUA.pdf appears to be a scan, using OCR
+2025-10-16 21:50:10,796 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EDNA CARMEN TORRES PEREZ.pdf appears to be a scan, using OCR
+2025-10-16 21:50:10,935 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ESTEBANA DIAZ BERRIO.pdf appears to be a scan, using OCR
+2025-10-16 21:50:15,902 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EUCLIDES LOPEZ CAMPO.pdf appears to be a scan, using OCR
+2025-10-16 21:50:17,589 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS MIGUEL RODELO REYES.pdf appears to be a scan, using OCR
+2025-10-16 21:50:19,019 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS NIETO MENDOZA.pdf appears to be a scan, using OCR
+2025-10-16 21:50:19,558 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARIA MERCADO MACARENO.pdf appears to be a scan, using OCR
+2025-10-16 21:50:24,083 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARMOL DE RODRIGUEZ CANDIDA.pdf appears to be a scan, using OCR
+2025-10-16 21:50:25,606 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARTA CARDENAS ROYET.pdf appears to be a scan, using OCR
+2025-10-16 21:50:27,535 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARY MORENO BALLESTERO.pdf appears to be a scan, using OCR
+2025-10-16 21:50:27,569 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MERCEDES ELENA REYES MONTAÑEZ.pdf appears to be a scan, using OCR
+2025-10-16 21:50:32,268 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\RESTAURANTE SANCOCHO DE GALLINA.pdf appears to be a scan, using OCR
+2025-10-16 21:50:33,368 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\YOLIMAIRA MIRANDA ACEVEDO.pdf appears to be a scan, using OCR
+2025-10-16 21:50:34,427 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\yudis isabel peñaloza.pdf appears to be a scan, using OCR
+2025-10-16 21:50:38,941 - extractor - INFO - Data written to C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B/312.xlsx with 19 records
+2025-10-16 21:53:46,057 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\3571190.pdf appears to be a scan, using OCR
+2025-10-16 21:53:46,388 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5648508.pdf appears to be a scan, using OCR
+2025-10-16 21:53:46,593 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\4400752.pdf appears to be a scan, using OCR
+2025-10-16 21:53:46,732 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\5589623.pdf appears to be a scan, using OCR
+2025-10-16 21:53:53,796 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\CARMEN SANCHEZ ALVARADO.pdf appears to be a scan, using OCR
+2025-10-16 21:53:56,091 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EDNA CARMEN TORRES PEREZ.pdf appears to be a scan, using OCR
+2025-10-16 21:53:56,433 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ERIKA PATRICIA MARTINEZ RUA.pdf appears to be a scan, using OCR
+2025-10-16 21:53:56,571 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\ESTEBANA DIAZ BERRIO.pdf appears to be a scan, using OCR
+2025-10-16 21:54:01,515 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\EUCLIDES LOPEZ CAMPO.pdf appears to be a scan, using OCR
+2025-10-16 21:54:04,625 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS MIGUEL RODELO REYES.pdf appears to be a scan, using OCR
+2025-10-16 21:54:05,718 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\LUIS NIETO MENDOZA.pdf appears to be a scan, using OCR
+2025-10-16 21:54:05,879 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARIA MERCADO MACARENO.pdf appears to be a scan, using OCR
+2025-10-16 21:54:06,901 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARMOL DE RODRIGUEZ CANDIDA.pdf appears to be a scan, using OCR
+2025-10-16 21:54:13,573 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARTA CARDENAS ROYET.pdf appears to be a scan, using OCR
+2025-10-16 21:54:15,703 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MERCEDES ELENA REYES MONTAÑEZ.pdf appears to be a scan, using OCR
+2025-10-16 21:54:15,745 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\RESTAURANTE SANCOCHO DE GALLINA.pdf appears to be a scan, using OCR
+2025-10-16 21:54:15,999 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\MARY MORENO BALLESTERO.pdf appears to be a scan, using OCR
+2025-10-16 21:54:20,902 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\YOLIMAIRA MIRANDA ACEVEDO.pdf appears to be a scan, using OCR
+2025-10-16 21:54:23,243 - extractor - INFO - PDF C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B\yudis isabel peñaloza.pdf appears to be a scan, using OCR
+2025-10-16 21:54:26,191 - extractor - INFO - Appended to existing Excel file C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B/123.xlsx
+2025-10-16 21:54:26,191 - extractor - INFO - Data written to C:/DISCOL/Python/ExtractorOCR/CUPONES PRUEBA CENTRO B/123.xlsx with 19 records
