@@ -6,7 +6,6 @@ import zipfile
 APP_NAME = "PDFExtractor"
 MAIN_SCRIPT = "extract_pdfs_to_excel.py"
 OUTPUT_DIR = "dist"
-TESSERACT_DIR = "tesseract"
 
 # Limpiar carpeta de salida
 if os.path.exists(OUTPUT_DIR):
@@ -18,7 +17,6 @@ cmd = [
     "--standalone",
     "--onefile",
     "--windows-disable-console",
-    "--include-data-dir=tesseract=tesseract",
     f"--output-dir={OUTPUT_DIR}",
     f"--output-filename={APP_NAME}.exe",
     MAIN_SCRIPT

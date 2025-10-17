@@ -1,5 +1,29 @@
-import json, shutil, sys, tempfile, subprocess, zipfile
-from pathlib import Path
+import os, sys, platform, subprocess, tkinter.messagebox as mb
+
+# 1. Evitar ventana negra al ejecutar Tesseract
+if platform.system() == "Windows":
+    _orig = subprocess.Popen
+    subprocess.Popen = lambda *a, **k: _orig(*a, **k, creationflags=8)
+
+# 2. Carpeta donde está el .exe (o el .py en desarrollo)
+if getattr(sys, 'frozen', False):
+    # .exe compilado con Nuitka
+    BASE = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    # script .py normal
+    BASE = os.path.dirname(os.path.abspath(__file__))
+
+# 3. Construir ruta correctamente
+TESSERACT_EXE = os.path.join(BASE, "tesseract", "tesseract.exe")
+
+# 4. Si no existe, avisamos y cerramos
+if not os.path.isfile(TESSERACT_EXE):
+    mb.showerror("Falta Tesseract", f"No se encuentra:\n{TESSERACT_EXE}")
+    sys.exit(1)
+
+# 5. Decirle a pytesseract dónde está
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXE
 
 """
 pdf_ocr_gui.py
@@ -27,8 +51,13 @@ DEFAULT_DPI = 600
 DEFAULT_LANG = "spa"
 # ------------------------------------
 # Ruta relativa al ejecutable portable
-TESSERACT_PATH = os.path.join(os.path.dirname(__file__), "tesseract", "tesseract.exe")
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+import subprocess
+import pytesseract
+import os
+import platform
+
+# Ruta al tesseract portable
+
 # ---------- Helper: limpiar nombre de cliente ----------
 # ---------- Helper: limpiar nombre de cliente (mejorado) ----------
 def clean_client_name(name: str) -> str:
@@ -1513,6 +1542,13 @@ def open_save_browser(parent, title="Guardar archivo", start_path=None, suggeste
 # ------------------------------------------------------------------
 #  Mini-GitHub updater  (public domain)
 # ------------------------------------------------------------------
+import shutil
+from pathlib import Path
+import zipfile
+import tempfile
+import subprocess
+import sys
+
 class GitHubUpdater:
     """
     Checks & applies new releases from
