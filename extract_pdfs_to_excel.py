@@ -1,3 +1,6 @@
+import json, shutil, sys, tempfile, subprocess, zipfile
+from pathlib import Path
+
 """
 pdf_ocr_gui.py
 GUI (Tkinter) para extraer campos de PDFs por OCR y guardarlos en Excel.
@@ -11,8 +14,9 @@ import re
 import threading
 import queue
 import platform
-import shutil
 from tkinter import Tk, StringVar, IntVar, BooleanVar, Toplevel, filedialog, messagebox, ttk, scrolledtext, Label, Button, Entry, Checkbutton
+import tkinter as tk
+from datetime import datetime
 from pdf2image import convert_from_path
 import pytesseract
 from PIL import Image, ImageFilter, ImageOps
@@ -23,41 +27,113 @@ DEFAULT_DPI = 600
 DEFAULT_LANG = "spa"
 # ------------------------------------
 
-# ---------- Find Tesseract executable ----------
-def find_tesseract():
-    """Find Tesseract executable in common locations."""
-    possible_paths = [
-        r'C:\Program Files\Tesseract-OCR\tesseract.exe',
-        r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
-        shutil.which('tesseract'),  # Check PATH
-    ]
-    for path in possible_paths:
-        if path and os.path.exists(path):
-            return path
-    return None
+# ---------- Helper: limpiar nombre de cliente ----------
+# ---------- Helper: limpiar nombre de cliente (mejorado) ----------
+def clean_client_name(name: str) -> str:
+    """
+    Limpia un nombre extraído por OCR:
+      - elimina contenido entre paréntesis/ corchetes
+      - quita sufijos artefacto cortos (RI, IO, IA, AI, TAI, OI, etc.)
+      - elimina tokens de 1 letra (ej. 'N', 'A') y tokens de 2-3 letras sospechosos,
+        salvo partículas válidas (DE, DEL, LA, SAN, MC, Y, etc.)
+      - elimina palabras tipo LEADER/REP y números pegados
+    """
+    if not name:
+        return None
+
+    s = str(name)
+
+    # quitar contenido entre corchetes o paréntesis y guiones largos
+    s = re.sub(r"[\[\(].*?[\]\)]", " ", s)
+    s = re.sub(r"[—–\-]+", " ", s)
+
+    # normalizar espacios y pasar a mayúsculas
+    s = re.sub(r'\s+', ' ', s).strip().upper()
+
+    # eliminar patrones "ROLE + número" (ej: LEADER 1051823433)
+    s = re.sub(r'\b(?:LEADER|REP|REPRESENTANTE|CONTACTO|CONTACT|AGENTE|OPERADOR|TELEFONO|TEL|CEL|CELULAR|MOVIL|MOV)\b\s*\d{3,}\b', ' ', s, flags=re.IGNORECASE)
+    s = re.sub(r'\b(?:LEADER|REP|REPRESENTANTE|CONTACTO|AGENTE|OPERADOR)\b', ' ', s, flags=re.IGNORECASE)
+
+    # tokenizar solo letras (evitamos arrastrar dígitos)
+    tokens = [t for t in re.findall(r"[A-ZÁÉÍÓÚÑ]+", s)]
+    if not tokens:
+        return None
+
+    # partículas a conservar
+    KEEP = {"DE", "DEL", "LA", "LAS", "LOS", "SAN", "SANTA", "MC", "VON", "Y", "DA", "DI", "ST", "SANTO"}
+
+    # blacklist corta (artefactos comunes). Añadí TAI, OI y variantes que mencionaste.
+    BLACKLIST_SHORT = {
+        "IT","IM","II","I","R","M","S","T","OT","XT","IV","VI",
+        "RI","IO","IA","AI","IN","ON","EN","AN","NA","N","A",
+        "TAI","OI","IO","OI","AI","IA","RI","RI"  # repetidos por seguridad (no dañan)
+    }
+
+    cleaned = []
+    for t in tokens:
+        # conservar partículas válidas
+        if t in KEEP:
+            cleaned.append(t)
+            continue
+        # eliminar tokens de longitud 1
+        if len(t) == 1:
+            continue
+        # eliminar tokens cortos que están en la blacklist
+        if 2 <= len(t) <= 3 and t in BLACKLIST_SHORT:
+            continue
+        # heurística extra: si son 2 letras y ambas consonantes poco probables en nombre => eliminar
+        if len(t) == 2 and t not in KEEP:
+            if re.match(r'^[BCDFGHJKLMNPQRSTVWXYZ]{2}$', t):
+                continue
+            # si no está en blacklist y no es doble consonante, lo dejamos (ej: 'LU' podría ser parte de nombre)
+        # para tokens >= 4 ó 3 que no están en blacklist, los conservamos
+        cleaned.append(t)
+
+    # quitar sufijos finales cortos que hayan quedado
+    while cleaned and len(cleaned[-1]) <= 2 and cleaned[-1] not in KEEP:
+        cleaned.pop()
+
+    result = " ".join(cleaned).strip()
+    return result if result else None
+
+
 
 # ---------- OCR + extracción (adaptado) ----------
 # ---------- OCR + extracción (adaptado y mejorado) ----------
 def image_preprocess(img: Image.Image, upscale_if_small=True) -> Image.Image:
+    """
+    Mejora la calidad de imagen antes del OCR:
+      - Convierte a escala de grises.
+      - Aumenta la resolución si es pequeña.
+      - Aplica contraste y nitidez.
+      - Binariza (umbral adaptativo).
+    """
     # Convertir a escala de grises
     img = img.convert("L")
 
-    # Upscaling para mejorar resolución de OCR
+    # Aumentar tamaño si la imagen es pequeña (para evitar letras rotas)
     w, h = img.size
-    if upscale_if_small and w < 2000:  # aumenta más el umbral
-        img = img.resize((int(w*2), int(h*2)), Image.LANCZOS)
+    if upscale_if_small and w < 4000:
+        factor = 4000 / w
+        img = img.resize((int(w * factor), int(h * factor)), Image.LANCZOS)
 
-    # Aumentar contraste
+    # Aumentar contraste y claridad
     img = ImageOps.autocontrast(img)
+    from PIL import ImageEnhance
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(3.0)
 
-    # Binarización (convertir a blanco y negro puro)
-    img = img.point(lambda x: 0 if x < 160 else 255, '1')
+    enhancer = ImageEnhance.Sharpness(img)
+    img = enhancer.enhance(3.0)
 
-    # Filtrar ruido
+    # Aumentar contraste y claridad
+    # img = ImageOps.autocontrast(img)
+    # Filtro de suavizado mediano (elimina puntos de ruido)
     img = img.filter(ImageFilter.MedianFilter(size=3))
 
-    # Convertir de nuevo a L para el OCR
-    img = img.convert("L")
+    # Aplicar umbral binario para texto nítido (binarización manual)
+    # Aumenta la separación texto-fondo
+    img = img.point(lambda x: 0 if x < 120 else 255, '1')
 
     return img
 
@@ -102,88 +178,6 @@ def clean_digits(s: str) -> str:
     d = re.sub(r'\D', '', s)
     return d if len(d) >= 1 else None
 
-# ---------- Normalización y heurísticas para montos OCR corruptos ----------
-def normalize_ocr_amount_text(s: str, context=""):
-    """
-    Normaliza una cadena OCR que pretende ser un monto.
-    - Reemplaza caracteres confundidos por dígitos.
-    - Extrae la secuencia de dígitos más plausible (preferencia >=4 dígitos).
-    - Devuelve string solo con dígitos o None si no encuentra nada razonable.
-    """
-    if not s:
-        return None
-    raw = str(s).strip()
-
-    # 1) Mapeo conservador de confusiones comunes (mayúsculas/minúsculas)
-    #    Ajusta según lo que veas: O->0, o->0, I->1, l->1, i->1, S->5, Z->2, B->8
-    #    K/X a veces aparece antes de números => si está al inicio lo quitamos
-    replacements = {
-        'O': '0', 'o': '0',
-        'I': '1', 'l': '1', 'i': '1',
-        'S': '5', 's': '5',
-        'Z': '2', 'z': '2',
-        'B': '8', 'b': '8',
-        # algunos ruídos comunes: remove non-sense letters near digits
-        'K': '', 'k': '', 'X': '', 'x': '', 'Q': '0'
-    }
-
-    # apply mapping character by character but keep ., and ,
-    mapped_chars = []
-    for ch in raw:
-        if ch in replacements:
-            mapped_chars.append(replacements[ch])
-        else:
-            mapped_chars.append(ch)
-    mapped = ''.join(mapped_chars)
-
-    # 2) Remove stray characters except digits and . ,
-    cleaned = re.sub(r"[^0-9\.,]", "", mapped)
-
-    # 3) If we have thousands separators like '530,000' or '53.000', remove separators and return digits
-    # Prefer the longest digit group >=3
-    digit_groups = re.findall(r"\d{3,}", cleaned)
-    if digit_groups:
-        # choose longest group (most likely full amount)
-        best = max(digit_groups, key=len)
-        return re.sub(r'[^0-9]', '', best)
-
-    # 4) else, try to extract ANY group of >=2 digits (relajado a 3 si quieres)
-    dg2 = re.findall(r"\d{2,}", cleaned)
-    if dg2:
-        best = max(dg2, key=len)
-        # only accept if at least 3 digits (to avoid 0/01 noise); adjust to 4 if needed
-        if len(best) >= 3:
-            return best
-
-    return None
-
-# ---------- Improved ocr_amount_from_image (slightly adjusted) ----------
-def ocr_amount_from_image(pil_image: Image.Image, keyword="VALOR", expand_px=120):
-    """
-    Re-ocr de una región alrededor de 'keyword'. Devuelve cadena normalizada de monto (solo dígitos)
-    o None.
-    """
-    try:
-        data = pytesseract.image_to_data(pil_image, lang='spa', output_type=Output.DICT)
-    except Exception:
-        return None
-
-    # buscar ocurrencias del keyword (insensible a mayúsculas)
-    idxs = [i for i, t in enumerate(data['text']) if t and keyword.upper() in t.upper()]
-    if not idxs:
-        return None
-
-    i = idxs[0]
-    x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
-    x0 = max(0, x - expand_px)
-    y0 = max(0, y - expand_px)
-    x1 = min(pil_image.width, x + w + expand_px)
-    y1 = min(pil_image.height, y + h + expand_px)
-    crop = pil_image.crop((x0, y0, x1, y1))
-
-    # OCR restringido (whitelist)
-
-
 def extract_fields_from_text(text: str) -> dict:
     """
     Heurística mejorada:
@@ -199,15 +193,138 @@ def extract_fields_from_text(text: str) -> dict:
 
     txt = text.replace("\r", "\n")
 
-    # --- Cliente: asume que está en MAYÚSCULAS y tras "Cliente:"
-    m = re.search(r"Cliente[:\s]*([A-ZÁÉÍÓÚÑ0-9\.\s]{2,200})", txt)
+        # --- Cliente: asume que está en MAYÚSCULAS y tras "Cliente:" (mejor extracción multilinea)
+        # --- Cliente: extracción multiline mejorada y limpieza
+        # --- Cliente: extracción multilínea mejorada y limpieza robusta ---
+    data["Cliente"] = None
+
+    # Buscar "Cliente:" en el texto
+    m = re.search(r"Cliente[:\s]*(.+)", txt, flags=re.IGNORECASE)
     if m:
-        raw_name = m.group(1).strip()
-        # elimina sufijos que empiecen por ' a <digits>' o números largos (tel), o tokens de dirección
-        cliente = re.sub(r"\s+(?:a\s*\d{3,}|\d{6,}|\bKR\b|\bCL\b|\bAV\b|PBX|FAX|Fax|Contrato|No\.?)\b[\s\S]*$", "", raw_name, flags=re.IGNORECASE).strip()
-        cliente = re.sub(r"[,\-\s]+$", "", cliente)
-        # asegurar mayúsculas (según pediste)
-        data["Cliente"] = cliente.upper() if cliente else None
+        # Tomar la parte después de "Cliente:" (solo la primera línea)
+                # Tomar la parte después de "Cliente:" (solo la primera línea)
+        base_line = m.group(1).splitlines()[0].strip()
+
+        # Eliminar todo desde "IDENTIFICACION" en adelante (misma línea)
+        base_line = re.split(r'\bIDENTIFICACI[oó]N\b', base_line, flags=re.IGNORECASE)[0].strip()
+
+        # Extraer tokens de letras
+        tokens = [t.upper() for t in re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]+", base_line)]
+
+        # Palabras que no deben considerarse parte del nombre
+        stop_keywords = {
+            "CONTRATO", "PBX", "FAX", "DIR", "DIRECCION", "NO", "NO.",
+            "REF", "REFERENCIA", "PAGO", "LÍNEA", "LINEA", "TIPO",
+            "TOTAL", "AV", "KR", "CL", "C"
+        }
+
+        # Filtrar tokens iniciales (solo letras, sin palabras de control)
+        tokens = [t for t in tokens if t not in stop_keywords and len(t) > 1 and t not in {"N", "A"}]
+        tokens = [t for t in tokens if t not in {"RI", "IO", "IA", "AI", "IN", "AN", "NA"}]
+
+        # Leer líneas siguientes (máximo 6) por si el nombre continúa en otra línea
+        following = txt[m.end():].splitlines()
+        look = 0
+        for ln in following:
+            if look >= 6:
+                break
+            look += 1
+            ln_strip = ln.strip()
+            if not ln_strip:
+                continue
+            up = ln_strip.upper()
+
+            # Si detecta otra sección o campo, detener
+            if any(up.startswith(k) for k in (
+                "CONTRATO", "PBX", "FAX", "NO.", "NO ", "PAGO",
+                "LÍNEA", "LINEA", "DIR", "DIREC", "REFERENCIA",
+                "TIPO", "TOTAL"
+            )):
+                break
+
+            # Si la línea contiene rol (leader, representante, etc.), cortar antes
+            if re.search(r'\b(LEADER|REP|REPRESENTANTE|CONTACTO|AGENTE|OPERADOR)\b', up, flags=re.IGNORECASE):
+                before_role = re.split(r'\b(LEADER|REP|REPRESENTANTE|CONTACTO|AGENTE|OPERADOR)\b', up, flags=re.IGNORECASE)[0]
+                ln_name_tokens = [t.upper() for t in re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}", before_role)]
+                ln_name_tokens = [t for t in ln_name_tokens if t not in stop_keywords]
+                tokens.extend(ln_name_tokens)
+                break
+
+            # Si contiene un número largo (teléfono o identificación), cortar
+            if re.search(r'\d{5,}', ln_strip):
+                ln_name_tokens = [t.upper() for t in re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}", ln_strip)]
+                ln_name_tokens = [t for t in ln_name_tokens if t not in stop_keywords]
+                tokens.extend(ln_name_tokens)
+                break
+
+            # Si parece una línea de nombre (predomina texto alfabético)
+            ln_tokens = [t.upper() for t in re.findall(r"[A-Za-zÁÉÍÓÚÑáéíóúñ]+", ln_strip)]
+            if not ln_tokens:
+                continue
+            ln_filtered = [t for t in ln_tokens if t not in stop_keywords and len(t) > 1 and t not in {"N", "A"}]
+            ln_filtered = [t for t in ln_filtered if t not in {"RI", "IO", "IA", "AI", "IN", "AN", "NA"}]
+            tokens.extend(ln_filtered)
+
+        # Unir tokens para formar el nombre bruto
+        raw_joined = " ".join(tokens).strip()
+
+        # --- Limpieza final del nombre (roles, cortos, etc.) ---
+        def clean_client_name(name: str) -> str:
+            if not name:
+                return None
+
+            s = str(name)
+            s = re.sub(r"[\[\(].*?[\]\)]", " ", s)
+            s = re.sub(r"[—–\-]+", " ", s)
+            s = re.sub(r'\s+', ' ', s).strip().upper()
+
+            # Eliminar patrones "ROL + número"
+            s = re.sub(
+                r'\b(?:LEADER|REP|REPRESENTANTE|CONTACTO|AGENTE|OPERADOR|TELEFONO|TEL|CEL|CELULAR|MOVIL|MOV)\b\s*\d{3,}\b',
+                ' ', s, flags=re.IGNORECASE
+            )
+            s = re.sub(
+                r'\b(?:LEADER|REP|REPRESENTANTE|CONTACTO|AGENTE|OPERADOR)\b',
+                ' ', s, flags=re.IGNORECASE
+            )
+
+            # Tokenizar
+            tokens = [t for t in re.findall(r"[A-ZÁÉÍÓÚÑ]+", s)]
+            if not tokens:
+                return None
+
+            KEEP = {"DE", "DEL", "LA", "LAS", "LOS", "SAN", "SANTA", "MC", "VON", "Y", "DA", "DI", "ST", "SANTO"}
+            BLACKLIST_SHORT = {
+                "IT","IM","II","I","R","M","S","T","OT","XT","IV","VI",
+                "RI","IO","IA","AI","IN","ON","EN","AN","NA","N","A",
+                "TAI","OI","IO","OI","AI","IA","RI","RI"  # repetidos por seguridad (no dañan)
+                }
+
+            cleaned = []
+            for t in tokens:
+                if t in KEEP:
+                    cleaned.append(t)
+                    continue
+                if len(t) == 1 or t in BLACKLIST_SHORT:
+                    continue
+                if 2 <= len(t) <= 3 and t in BLACKLIST_SHORT:
+                    continue
+                if len(t) == 2 and t not in KEEP:
+                    if re.match(r'^[BCDFGHJKLMNPQRSTVWXYZ]{2}$', t):
+                        continue
+                cleaned.append(t)
+
+            while cleaned and len(cleaned[-1]) <= 2 and cleaned[-1] not in KEEP:
+                cleaned.pop()
+
+            result = " ".join(cleaned).strip()
+            return result if result else None
+
+        # Aplicar limpieza
+        cleaned = clean_client_name(raw_joined) if raw_joined else None
+        data["Cliente"] = cleaned if cleaned else (raw_joined if raw_joined else None)
+
+
 
     # --- Identificación: etiqueta o número en la misma línea que cliente
     m = re.search(r"Identificaci[oó]n[:\s]*([\d\-\s]{6,20})", txt, flags=re.IGNORECASE)
@@ -226,11 +343,9 @@ def extract_fields_from_text(text: str) -> dict:
     # --- DirCliente (intenta etiqueta o patrón 'KR/CL/AV')
     m = re.search(r"Dir(?:\.|eccion)?(?:\.|:)?\s*Cliente[:\s]*([A-Z0-9ÁÉÍÓÚÑ\-\.,#\s]{3,200})", txt, flags=re.IGNORECASE)
     if not m:
-        matches = re.findall(r"((?:KR|CL|AV|C[^\n]{1,30}|[A-Z]{2,5}\s*\d{1,3})[^\n]{0,150})", txt, flags=re.IGNORECASE)
-        for match in matches:
-            if "cliente" not in match.lower():
-                data["DirCliente"] = match.strip().split("\n")[0].strip()
-                break
+        m = re.search(r"((?:KR|CL|AV|C[^\n]{1,30}|[A-Z]{2,5}\s*\d{1,3})[^\n]{0,60})", txt, flags=re.IGNORECASE)
+    if m:
+        data["DirCliente"] = m.group(1).strip().split("\n")[0].strip()
 
     # --- NoRefPago
     m = re.search(r"No\.?\s*Ref\.?\s*[:\s]*Pago[:\s]*([0-9]{5,30})", txt, flags=re.IGNORECASE)
@@ -246,6 +361,10 @@ def extract_fields_from_text(text: str) -> dict:
     if m:
         data["TipoCupon"] = m.group(1).strip().upper()
 
+        # Si el tipo de cupón es "CA", dejar NoSolicitud en blanco
+        if data["TipoCupon"] == "CA":
+            data["NoSolicitud"] = None
+
     # --- ValidoHasta (fecha dd-MMM-YYYY, corrige 0 por O en los meses)
     m = re.search(r"([0-9]{1,2}[-/][A-Z0-9]{3,}[-/][0-9]{4})", txt, flags=re.IGNORECASE)
     if m:
@@ -257,7 +376,6 @@ def extract_fields_from_text(text: str) -> dict:
             partes[1] = partes[1].replace("0", "O")
             fecha = "-".join(partes)
         data["ValidoHasta"] = fecha
-
 
     # ------------------ REEMPLAZAR POR ESTE BLOQUE ------------------
     # 9) Valor a pagar: priorizamos en este orden:
@@ -337,110 +455,165 @@ def extract_fields_from_text(text: str) -> dict:
 # ------------------ FIN BLOQUE ------------------
 
     # --- Código de barra: última línea con paréntesis/dígitos largos
+    # --- Código de barra: solo líneas con formato GS1-128 válido
     lines = [ln.strip() for ln in txt.splitlines() if ln.strip()]
     barcode_line = None
     for ln in reversed(lines):
-        if re.search(r"\(\d{2,}\)", ln) or (len(re.sub(r"\D", "", ln)) >= 20):
+        # Patrón GS1-128: (AI)valor repetido, con AI de 2+ dígitos
+        if re.fullmatch(r'(\(\d{2,4}\)\d+)+', ln):
             barcode_line = ln
             break
     if barcode_line:
         data["CodigoBarraRaw"] = barcode_line
         data["CodigoBarraLimpio"] = clean_barcode(barcode_line)
-
-    if not data["ValorAPagar"] and data["CodigoBarraLimpio"]:
-        m = re.search(r'(\d{5})96', data["CodigoBarraLimpio"])
-        if m:
-            data["ValorAPagar"] = m.group(1)
+     # --- Importe desde AI 3900
+    m3900 = re.search(r'\(3900\)(\d{4,12})', barcode_line)
+    if m3900:
+        # sin decimales (entero)
+        data["ValorAPagar"] = str(int(m3900.group(1)))
 
     # ---------------- REEMPLAZAR LA SECCIÓN NoSolicitud POR ESTE BLOQUE ----------------
+    # ------------------ NoSolicitud (siguiendo tu regla: línea No. Ref -> 1º FAX, 2º NoSolicitud) ------------------
     data["NoSolicitud"] = None
-
-    # 1) buscar líneas que contengan la palabra "Solicitud" (varias variantes)
-    solicitud_lines = []
-    for ln in txt.splitlines():
-        if re.search(r"\bSolicit(?:ud|ion)\b", ln, flags=re.IGNORECASE):
-            solicitud_lines.append(ln.strip())
-
     found = None
-    # intentar extraer número directamente en esas líneas
-    for ln in solicitud_lines:
-        m = re.search(r"([0-9]{5,30})", ln)
-        if m:
-            found = m.group(1)
-            break
 
-    # 2) si no hay, encontrar la posición de la primera ocurrencia de "Solicitud" y tomar el número más cercano en el texto
-    if not found:
+    # Buscar la línea que contiene "No. Ref" (variantes)
+    m_ref_line = re.search(r"^(.*No\.?\s*Ref\.?.*)$", txt, flags=re.IGNORECASE | re.MULTILINE)
+    if m_ref_line:
+        line = m_ref_line.group(1)
+        # extraer todos los números largos (6+ dígitos) de esa línea, en el orden que aparecen
+        nums = [mo.group(0) for mo in re.finditer(r"[0-9]{6,15}", line)]
+        if len(nums) >= 2:
+            # según tu regla: el primero es FAX, el segundo es NoSolicitud
+            candidate = nums[1]
+            # evitar devolver la misma que la identificación
+            if data.get("Identificacion") and re.sub(r"\D","",candidate) == re.sub(r"\D","",str(data["Identificacion"])):
+                # si coincide con la identificación, intentar tomar el tercero (si existe)
+                if len(nums) >= 3:
+                    candidate = nums[2]
+                else:
+                    candidate = None
+            found = candidate
+        elif len(nums) == 1:
+            # Solo hay un número largo en la línea. Intentar buscar contexto cercano
+            #  a) si en la misma línea aparece 'FAX' justo antes del número, ese será fax -> buscar número siguiente en ventana del texto
+            # (Tomamos ±200 caracteres alrededor de la posición de la línea en el texto)
+            pos = m_ref_line.start(1)
+            window = txt[max(0, pos-200): pos+200]
+            all_nums_window = [mo.group(0) for mo in re.finditer(r"[0-9]{6,15}", window)]
+            # si hay al menos 2 en la ventana, preferimos el que no sea el primero (asumiendo fax primero)
+            if len(all_nums_window) >= 2:
+                candidate = all_nums_window[1]
+                if data.get("Identificacion") and re.sub(r"\D","",candidate) == re.sub(r"\D","",str(data["Identificacion"])):
+                    if len(all_nums_window) >= 3:
+                        candidate = all_nums_window[2]
+                    else:
+                        candidate = None
+                found = candidate
+            else:
+                # fallback: no se pudo determinar, dejamos None (mejor vacío que equivocarnos)
+                found = None
+    else:
+        # Si no hay línea "No. Ref", fallback conservador:
+        # buscar la palabra "Solicitud" y tomar el número más cercano a la derecha que no sea la ident.
         mpos = re.search(r"\bSolicit(?:ud|ion)\b", txt, flags=re.IGNORECASE)
         if mpos:
             pos = mpos.start()
-            all_nums = [(mo.group(0), mo.start()) for mo in re.finditer(r"[0-9]{5,30}", txt)]
-            if all_nums:
-                best = min(all_nums, key=lambda x: abs(x[1] - pos))
-                found = best[0]
+            # buscar números en un rango a la derecha
+            window = txt[pos: pos+300]
+            nums = [mo.group(0) for mo in re.finditer(r"[0-9]{6,15}", window)]
+            # preferir el primer número que no coincida con Identificacion
+            candidate = None
+            for n in nums:
+                if data.get("Identificacion") and re.sub(r"\D","",n) == re.sub(r"\D","",str(data["Identificacion"])):
+                    continue
+                candidate = n
+                break
+            found = candidate
 
-    # 3) fallback: buscar "No. Solicitud" explícito en cualquier parte
-    if not found:
-        m = re.search(r"No\.?\s*Solicit(?:ud|ion)[:\s\-]*([0-9]{5,30})", txt, flags=re.IGNORECASE)
-        if m:
-            found = m.group(1)
+    # asegurarse de no devolver la identificación por error
+    if found and data.get("Identificacion") and re.sub(r"\D","",found) == re.sub(r"\D","",str(data["Identificacion"])):
+        found = None
 
-    if found:
-        data["NoSolicitud"] = re.sub(r"\D", "", found)
-    else:
-        data["NoSolicitud"] = None
-# --------------- FIN BLOQUE NoSolicitud ------------------
-
+    data["NoSolicitud"] = re.sub(r"\D", "", found) if found else None
 
     return data
 
 
-def extract_text_from_pdf(pdf_path, dpi=300, lang='spa', tesseract_config="--psm 6", save_ocr_text=False, ocr_text_dir=None, logger=None):
+import pdfplumber  # colocarlo al inicio junto con tus imports
+
+def extract_text_from_pdf(pdf_path, dpi=600, lang='spa', tesseract_config="--psm 6",
+                          save_ocr_text=False, ocr_text_dir=None, logger=None,
+                          selectable_text_min_chars=50):
+    """
+    Extrae texto de un PDF intentando primero obtener texto seleccionable (pdfplumber).
+    Si no se detecta texto suficiente (menos de selectable_text_min_chars), hace OCR
+    usando pdf2image + pytesseract y devuelve ese texto.
+    Parámetros:
+      - pdf_path: ruta al PDF
+      - dpi: resolución para convertir páginas a imagen (si OCR requerido)
+      - lang: idiomas para tesseract (ej: 'spa')
+      - tesseract_config: configuración de tesseract (ej: "--psm 6")
+      - save_ocr_text: si True guarda .txt con el texto OCR
+      - ocr_text_dir: carpeta donde guardar .txt
+      - selectable_text_min_chars: mínimo de caracteres para considerar "texto seleccionable útil"
+    """
+    # 1) Intentar texto seleccionable con pdfplumber
+    try:
+        text_pages = []
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                # extrae texto de la página; strip() para eliminar espacios extra
+                t = page.extract_text()
+                if t:
+                    text_pages.append(t)
+        selectable_text = "\n\n".join(text_pages).strip()
+        # si hay texto seleccionable suficiente, devolverlo directamente
+        if selectable_text and len(re.sub(r'\s+', '', selectable_text)) >= selectable_text_min_chars:
+            if logger:
+                logger(f"Usando texto seleccionable de: {os.path.basename(pdf_path)}")
+            # opcional: normalizar saltos de línea múltiples
+            return selectable_text
+    except Exception as e:
+        # si falla pdfplumber (archivo raro), seguimos a OCR sin interrumpir
+        if logger:
+            logger(f"pdfplumber fallo para {os.path.basename(pdf_path)}: {e}. Se intentará OCR.")
+
+    # 2) Si no hay texto seleccionable suficiente -> usar OCR (imagen)
+    # Convertir páginas a imágenes
     pages = convert_from_path(pdf_path, dpi=dpi)
     texts = []
     for _i, page in enumerate(pages):
-        img = image_preprocess(page)
-        text = pytesseract.image_to_string(img, lang=lang, config=tesseract_config)
-        texts.append(text)
+        # aplicar preprocesado (tu función image_preprocess)
+        try:
+            img = image_preprocess(page)
+            text = pytesseract.image_to_string(img, lang=lang, config=tesseract_config)
+            texts.append(text)
+        except Exception as e:
+            # si falla en una página, seguir con las demás
+            if logger:
+                logger(f"OCR fallo en página {_i+1} de {os.path.basename(pdf_path)}: {e}")
     full_text = "\n\n".join(texts)
+
+    # 3) Guardar .txt si se solicita
     if save_ocr_text and ocr_text_dir:
-        fn = os.path.splitext(os.path.basename(pdf_path))[0] + ".txt"
-        with open(os.path.join(ocr_text_dir, fn), "w", encoding="utf-8") as f:
-            f.write(full_text)
+        try:
+            os.makedirs(ocr_text_dir, exist_ok=True)
+            fn = os.path.splitext(os.path.basename(pdf_path))[0] + ".txt"
+            with open(os.path.join(ocr_text_dir, fn), "w", encoding="utf-8") as f:
+                f.write(full_text)
+        except Exception as e:
+            if logger:
+                logger(f"No se pudo guardar OCR .txt para {pdf_path}: {e}")
+
     return full_text
+
 
 # ---------- Worker: procesa una carpeta ----------
 def process_all_pdfs(input_folder, output_excel, dpi, lang, tesseract_cmd, save_ocr_text, ocr_text_dir, progress_queue, log_queue, stop_event):
     try:
         if tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-        else:
-            # Auto-detect Tesseract if not specified
-            tesseract_exe = find_tesseract()
-            if tesseract_exe:
-                pytesseract.pytesseract.tesseract_cmd = tesseract_exe
-            else:
-                log_queue.put("Error: Tesseract executable not found. Please install Tesseract OCR from https://github.com/UB-Mannheim/tesseract/wiki or specify the correct path in the GUI.")
-                progress_queue.put(("done", 0, 0))
-                return
-
-        # Set TESSDATA_PREFIX to the tessdata directory
-        tesseract_exe = pytesseract.pytesseract.tesseract_cmd
-        if not os.path.exists(tesseract_exe):
-            log_queue.put(f"Error: Tesseract executable not found at {tesseract_exe}. Please install Tesseract OCR or specify the correct path in the GUI.")
-            progress_queue.put(("done", 0, 0))
-            return
-        tessdata_dir = os.path.join(os.path.dirname(tesseract_exe), 'tessdata')
-        os.environ['TESSDATA_PREFIX'] = tessdata_dir
-
-        # Check if language data files exist
-        lang_files = lang.split('+')
-        for l in lang_files:
-            l = l.strip()
-            if not os.path.exists(os.path.join(tessdata_dir, f'{l}.traineddata')):
-                log_queue.put(f"Error: Language data file '{l}.traineddata' not found in {tessdata_dir}. Please download it from https://github.com/tesseract-ocr/tessdata and place it in the tessdata directory.")
-                progress_queue.put(("done", 0, 0))
-                return
 
         files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if f.lower().endswith(".pdf")]
         total = len(files)
@@ -469,7 +642,7 @@ def process_all_pdfs(input_folder, output_excel, dpi, lang, tesseract_cmd, save_
                 rows.append({"_file": os.path.basename(pdf), "error": str(e)})
             progress_queue.put(("progress", idx, total))
 
-        # Guardar Excel
+        # Guardar Excel (append if exists)
         df = pd.DataFrame(rows)
         # ordenar columnas
         cols_order = ["_file", "Cliente", "Contrato", "Identificacion", "NoSolicitud",
@@ -477,8 +650,17 @@ def process_all_pdfs(input_folder, output_excel, dpi, lang, tesseract_cmd, save_
                       "CodigoBarraRaw", "CodigoBarraLimpio", "error"]
         cols = [c for c in cols_order if c in df.columns] + [c for c in df.columns if c not in cols_order]
         df = df[cols]
-        df.to_excel(output_excel, index=False)
-        log_queue.put(f"Excel guardado en: {output_excel}")
+
+        if os.path.exists(output_excel):
+            # Load existing data and append
+            existing_df = pd.read_excel(output_excel)
+            combined_df = pd.concat([existing_df, df], ignore_index=True)
+            combined_df.to_excel(output_excel, index=False)
+            log_queue.put(f"Datos agregados al Excel existente: {output_excel}")
+        else:
+            df.to_excel(output_excel, index=False)
+            log_queue.put(f"Excel creado en: {output_excel}")
+
         progress_queue.put(("done", total, total))
     except Exception as e:
         log_queue.put(f"Fallo inesperado: {e}")
@@ -514,8 +696,9 @@ def list_dir(path):
 class OCRGui:
     def __init__(self, root):
         self.root = root
-        root.title("OCR PDF -> Excel")
-        root.geometry("820x540")
+        root.title("Extractor de Datos PDF → Excel v0.1.0")
+        root.geometry("800x650")
+        root.configure(bg="#f8f9fa")
 
         # Variables
         self.input_folder = StringVar()
@@ -523,13 +706,7 @@ class OCRGui:
         self.dpi = IntVar(value=DEFAULT_DPI)
         self.lang = StringVar(value=DEFAULT_LANG)
         self.tesseract_cmd = StringVar(value="")
-        self.save_ocr_text = BooleanVar(value=False)
-        self.ocr_text_dir = StringVar(value=os.path.join(os.getcwd(), "ocr_texts"))
-
-        # Auto-detect Tesseract on startup
-        detected = find_tesseract()
-        if detected:
-            self.tesseract_cmd.set(detected)
+        self.is_processing = False
 
         # Queues and thread control
         self.progress_queue = queue.Queue()
@@ -537,83 +714,124 @@ class OCRGui:
         self.worker_thread = None
         self.stop_event = threading.Event()
 
-        # Layout
-        padx = 8
-        pady = 6
-        row = 0
-        Label(root, text="Carpeta con PDFs:").grid(row=row, column=0, sticky="w", padx=padx, pady=pady)
-        Entry(root, textvariable=self.input_folder, width=68).grid(row=row, column=1, columnspan=3, sticky="w", padx=padx, pady=pady)
-        Button(root, text="Seleccionar (ventana)", command=self.select_input_folder).grid(row=row, column=4, padx=padx, pady=pady)
-        Button(root, text="Seleccionar (nativo)", command=self.select_input_folder_native).grid(row=row, column=5, padx=2, pady=pady)
+        # Setup UI
+        self.setup_styles()
+        self.create_widgets()
 
-        row += 1
-        Label(root, text="Guardar Excel como:").grid(row=row, column=0, sticky="w", padx=padx, pady=pady)
-        Entry(root, textvariable=self.output_file, width=68).grid(row=row, column=1, columnspan=3, sticky="w", padx=padx, pady=pady)
-        Button(root, text="Seleccionar (ventana)", command=self.select_output_file).grid(row=row, column=4, padx=padx, pady=pady)
-        Button(root, text="Seleccionar (nativo)", command=self.select_output_file_native).grid(row=row, column=5, padx=2, pady=pady)
-
-        row += 1
-        Label(root, text="DPI (OCR):").grid(row=row, column=0, sticky="w", padx=padx, pady=pady)
-        Entry(root, textvariable=self.dpi, width=8).grid(row=row, column=1, sticky="w", padx=padx, pady=pady)
-        Label(root, text="Idioma Tesseract (ej: spa, eng, spa+eng):").grid(row=row, column=2, sticky="w", padx=padx, pady=pady)
-        Entry(root, textvariable=self.lang, width=18).grid(row=row, column=3, sticky="w", padx=padx, pady=pady)
-
-        row += 1
-        Label(root, text="Ruta Tesseract (opcional):").grid(row=row, column=0, sticky="w", padx=padx, pady=pady)
-        Entry(root, textvariable=self.tesseract_cmd, width=68).grid(row=row, column=1, columnspan=3, sticky="w", padx=padx, pady=pady)
-        Button(root, text="Examinar", command=self.select_tesseract).grid(row=row, column=4, padx=padx, pady=pady)
-
-        row += 1
-        Checkbutton(root, text="Guardar OCR .txt por PDF", variable=self.save_ocr_text).grid(row=row, column=0, sticky="w", padx=padx, pady=pady)
-        Entry(root, textvariable=self.ocr_text_dir, width=56).grid(row=row, column=1, columnspan=3, sticky="w", padx=padx, pady=pady)
-        Button(root, text="Carpeta OCR", command=self.select_ocr_text_dir).grid(row=row, column=4, padx=padx, pady=pady)
-
-        row += 1
-        self.start_btn = Button(root, text="Iniciar", command=self.start_processing, width=14)
-        self.start_btn.grid(row=row, column=1, pady=12)
-        self.cancel_btn = Button(root, text="Cancelar", command=self.cancel_processing, width=14, state="disabled")
-        self.cancel_btn.grid(row=row, column=2, pady=12)
-
-        row += 1
-        Label(root, text="Progreso:").grid(row=row, column=0, sticky="w", padx=padx, pady=pady)
-        self.progress = ttk.Progressbar(root, orient="horizontal", length=620, mode="determinate")
-        self.progress.grid(row=row, column=1, columnspan=4, sticky="w", padx=padx, pady=pady)
-
-        row += 1
-        Label(root, text="Logs:").grid(row=row, column=0, sticky="nw", padx=padx, pady=pady)
-        self.logbox = scrolledtext.ScrolledText(root, width=100, height=14, wrap="word")
-        self.logbox.grid(row=row, column=1, columnspan=5, padx=padx, pady=pady)
+        # Welcome message
+        self.log_message("👋 ¡Bienvenido al Extractor de Datos PDF!", "info")
+        self.log_message("💡 Sigue los pasos numerados para comenzar", "info")
 
         # Poll queues
         root.after(200, self._poll_queues)
 
-    # ---------- Custom folder selection windows ----------
+    def setup_styles(self):
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure('Title.TLabel', font=('Helvetica', 12, 'bold'), background='#f8f9fa')
+        style.configure('Success.TButton', background='#28a745', foreground='white')
+        style.configure('Primary.TButton', background='#007bff', foreground='white')
+        style.configure('Warning.TButton', background='#ffc107', foreground='black')
+        style.configure('Error.TButton', background='#dc3545', foreground='white')
+
+    def create_input_section(self, parent):
+        input_frame = ttk.LabelFrame(parent, text="📁 Paso 1: Seleccionar Carpeta de PDFs", padding="10")
+        input_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.input_label = ttk.Label(input_frame, text="📍 Ninguna carpeta seleccionada", foreground="gray", font=('Helvetica', 9))
+        self.input_label.pack(anchor="w", pady=(0, 5))
+
+        input_btn = ttk.Button(input_frame, text="🗂️ Examinar Carpeta", command=self.select_input_folder, style='Primary.TButton')
+        input_btn.pack(anchor="w")
+
+    def create_output_section(self, parent):
+        output_frame = ttk.LabelFrame(parent, text="💾 Paso 2: Guardar Archivo Excel", padding="10")
+        output_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.output_label = ttk.Label(output_frame, text="📍 Ningún archivo seleccionado", foreground="gray", font=('Helvetica', 9))
+        self.output_label.pack(anchor="w", pady=(0, 5))
+
+        output_btn = ttk.Button(output_frame, text="💾 Guardar Como...", command=self.select_output_file, style='Primary.TButton')
+        output_btn.pack(anchor="w")
+
+    def create_control_section(self, parent):
+        control_frame = ttk.LabelFrame(parent, text="🚀 Paso 3: Procesar Archivos", padding="10")
+        control_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.start_button = ttk.Button(control_frame, text="▶️ Iniciar Extracción", command=self.start_processing, style='Success.TButton')
+        self.start_button.pack(fill=tk.X, pady=(0, 10))
+
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(control_frame, variable=self.progress_var, maximum=100, length=300)
+        self.progress_bar.pack(fill=tk.X, pady=(0, 10))
+
+        button_frame = ttk.Frame(control_frame)
+        button_frame.pack(fill=tk.X)
+
+
+        button_frame = ttk.Frame(control_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+
+        clear_btn = ttk.Button(button_frame, text="🧹 Limpiar Log", command=self.clear_log, style='Warning.TButton')
+        clear_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        help_btn = ttk.Button(button_frame, text="❓ Ayuda", command=self.show_help)
+        help_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        about_btn = ttk.Button(button_frame, text="ℹ️ Acerca de", command=self.show_about)
+        about_btn.pack(side=tk.LEFT)
+
+        
+
+    def create_log_section(self, parent):
+        log_frame = ttk.LabelFrame(parent, text="📋 Registro de Actividad", padding="10")
+        log_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        text_frame = ttk.Frame(log_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.log_area = scrolledtext.ScrolledText(text_frame, height=12, wrap=tk.WORD, state='disabled', font=('Consolas', 9))
+        self.log_area.pack(fill=tk.BOTH, expand=True)
+
+        self.log_area.tag_config("info", foreground="#333333")
+        self.log_area.tag_config("success", foreground="#28a745", font=('Consolas', 9, 'bold'))
+        self.log_area.tag_config("error", foreground="#dc3545", font=('Consolas', 9, 'bold'))
+        self.log_area.tag_config("warning", foreground="#fd7e14", font=('Consolas', 9, 'bold'))
+
+    def create_footer(self, parent):
+        footer_frame = ttk.Frame(parent)
+        footer_frame.pack(fill=tk.X, pady=(10, 0))
+
+        footer_label = ttk.Label(footer_frame, text="v0.1.0 - Extractor Modular Robusto | Desarrollado con ❤️", font=('Helvetica', 8), foreground="gray")
+        footer_label.pack(anchor="center")
+
     def select_input_folder(self):
-        # open custom Toplevel folder browser (modal)
-        start = self.input_folder.get().strip() or os.path.expanduser("~")
-        folder = open_folder_browser(self.root, title="Seleccionar carpeta con PDFs", start_path=start, only_directories=True)
+        folder = filedialog.askdirectory(title="📁 Selecciona la carpeta con los archivos PDF")
         if folder:
             self.input_folder.set(folder)
+            folder_name = os.path.basename(folder)
+            pdf_count = len([f for f in os.listdir(folder) if f.lower().endswith('.pdf')])
+            self.input_label.config(text=f"📁 {folder_name} ({pdf_count} PDFs)", foreground="black")
+            self.log_message(f"📁 Carpeta seleccionada: {folder_name}", "success")
+            self.check_ready_to_process()
 
     def select_output_file(self):
-        # open custom Toplevel save browser (choose folder + filename)
-        start_folder = os.path.dirname(self.output_file.get()) if self.output_file.get() else os.path.expanduser("~")
-        suggested = os.path.basename(self.output_file.get()) or "extracted_data.xlsx"
-        folder, filename = open_save_browser(self.root, title="Guardar Excel como", start_path=start_folder, suggested_name=suggested)
-        if folder and filename:
-            self.output_file.set(os.path.join(folder, filename))
+        file_path = filedialog.asksaveasfilename(
+            title="💾 Guardar archivo como...",
+            defaultextension='.xlsx',
+            filetypes=[("Archivos Excel", "*.xlsx"), ("Todos los archivos", "*.*")]
+        )
+        if file_path:
+            self.output_file.set(file_path)
+            file_name = os.path.basename(file_path)
+            self.output_label.config(text=f"💾 {file_name}", foreground="black")
+            self.log_message(f"💾 Archivo de salida: {file_name}", "success")
+            self.check_ready_to_process()
 
-    # fallback native dialogs (por si prefieres)
-    def select_input_folder_native(self):
-        d = filedialog.askdirectory(title="Seleccionar carpeta con PDFs")
-        if d:
-            self.input_folder.set(d)
 
-    def select_output_file_native(self):
-        f = filedialog.asksaveasfilename(title="Guardar Excel", defaultextension=".xlsx",
-                                         filetypes=[("Excel files","*.xlsx"), ("All files","*.*")])
-        if f:
-            self.output_file.set(f)
+    def check_ready_to_process(self):
+        if self.input_folder and self.output_file:
+            self.log_message("✅ ¡Listo para procesar! Haz clic en 'Iniciar Extracción'", "success")
 
     def select_tesseract(self):
         f = filedialog.askopenfilename(title="Seleccionar ejecutable Tesseract (si aplica)")
@@ -621,50 +839,316 @@ class OCRGui:
             self.tesseract_cmd.set(f)
 
     def select_ocr_text_dir(self):
-        d = filedialog.askdirectory(title="Carpeta para guardar OCR (.txt)")
+        d = filedialog.askdirectory(title="📁 Seleccionar carpeta para guardar archivos OCR (.txt)")
         if d:
             self.ocr_text_dir.set(d)
 
-    # ---------- Processing control ----------
+
     def start_processing(self):
         input_folder = self.input_folder.get().strip()
         output_file = self.output_file.get().strip()
-        if not input_folder or not os.path.isdir(input_folder):
-            messagebox.showerror("Error", "Selecciona una carpeta válida con PDFs.")
-            return
-        if not output_file:
-            messagebox.showerror("Error", "Selecciona dónde guardar el archivo Excel.")
+        if not input_folder or not output_file:
+            messagebox.showwarning("⚠️ Campos incompletos", "Por favor selecciona:\n• Carpeta con PDFs\n• Archivo Excel de salida")
             return
 
-        dpi = int(self.dpi.get())
-        lang = self.lang.get().strip() or DEFAULT_LANG
-        tesseract_cmd = self.tesseract_cmd.get().strip() or None
-        save_ocr_text = bool(self.save_ocr_text.get())
-        ocr_text_dir = self.ocr_text_dir.get().strip() if save_ocr_text else None
+        if self.is_processing:
+            return
 
-        # disable start, enable cancel
-        self.start_btn.config(state="disabled")
-        self.cancel_btn.config(state="normal")
-        self.logbox.delete("1.0", "end")
-        self.progress['value'] = 0
+        self.is_processing = True
+        self.start_button.config(text="⏳ Procesando...", state="disabled")
+        self.progress_var.set(0)
 
-        # prepare thread
-        self.stop_event.clear()
-        self.worker_thread = threading.Thread(
-            target=process_all_pdfs,
-            args=(input_folder, output_file, dpi, lang, tesseract_cmd, save_ocr_text, ocr_text_dir, self.progress_queue, self.log_queue, self.stop_event),
-            daemon=True
-        )
-        self.worker_thread.start()
-        self.logbox.insert("end", "Iniciado procesamiento...\n")
-        self.logbox.see("end")
+        self.clear_log()
+        self.log_message("🚀 Iniciando procesamiento...", "info")
+        self.log_message(f"📂 Carpeta: {os.path.basename(input_folder)}", "info")
+        self.log_message(f"📄 Archivo: {os.path.basename(output_file)}", "info")
+
+        thread = threading.Thread(target=self.process_files, daemon=True)
+        thread.start()
+
+    def process_files(self):
+        try:
+            input_folder = self.input_folder.get().strip()
+            output_file = self.output_file.get().strip()
+            pdf_files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if f.lower().endswith('.pdf')]
+            if not pdf_files:
+                self.root.after(0, lambda: self.log_message("⚠️ No se encontraron archivos PDF", "warning"))
+                self.root.after(0, lambda: self._reset_ui())
+                return
+
+            total_files = len(pdf_files)
+            self.root.after(0, lambda: self.log_message(f"📄 Se encontraron {total_files} archivos PDF", "info"))
+
+            processed_count = 0
+            data_list = []
+            errors_count = 0
+            scan_count = 0
+
+            def progress_callback(filename, text):
+                nonlocal processed_count, errors_count, scan_count
+                processed_count += 1
+                progress = (processed_count / total_files) * 100
+
+                # Extract data in the worker thread
+                if text and text != "SCAN":
+                    try:
+                        data = extract_fields_from_text(text)
+                        data["_file"] = filename
+                        data_list.append(data)
+                        # Schedule GUI update for success
+                        self.root.after(0, lambda: self._update_progress(filename, text, progress, processed_count, total_files))
+                    except Exception as e:
+                        errors_count += 1
+                        self.root.after(0, lambda fn=filename, p=progress, pc=processed_count, tf=total_files:
+                                      self._update_progress_error(fn, str(e), p, pc, tf))
+                elif text == "SCAN":
+                    scan_count += 1
+                    # Schedule GUI update for scan
+                    self.root.after(0, lambda fn=filename, p=progress, pc=processed_count, tf=total_files:
+                                  self._update_progress_scan(fn, p, pc, tf))
+                else:
+                    errors_count += 1
+                    # Schedule GUI update for empty text
+                    self.root.after(0, lambda fn=filename, p=progress, pc=processed_count, tf=total_files:
+                                  self._update_progress(fn, None, p, pc, tf))
+
+            # Process PDFs sequentially
+            for pdf in pdf_files:
+                if self.stop_event.is_set():
+                    self.root.after(0, lambda: self.log_message("Proceso cancelado por el usuario.", "warning"))
+                    break
+                try:
+                    text = extract_text_from_pdf(pdf, dpi=int(self.dpi.get()), lang=self.lang.get().strip() or DEFAULT_LANG,
+                                               save_ocr_text=False, ocr_text_dir=None)
+                    progress_callback(os.path.basename(pdf), text)
+                except Exception as e:
+                    progress_callback(os.path.basename(pdf), None)
+
+            # Schedule final UI updates on main thread
+            self.root.after(0, lambda: self._finalize_processing(data_list, errors_count, scan_count, total_files, output_file))
+
+        except Exception as e:
+            self.root.after(0, lambda: self.log_message(f"❌ Error crítico: {str(e)}", "error"))
+            self.root.after(0, lambda: messagebox.showerror("❌ Error", f"Error durante el procesamiento:\n\n{str(e)}"))
+            self.root.after(0, lambda: self._reset_ui())
+
+    def _finalize_processing(self, data_list, errors_count, scan_count, total_files, output_file):
+        """Finalize processing and update UI on main thread."""
+        try:
+            if data_list:
+                # Save Excel
+                df = pd.DataFrame(data_list)
+                cols_order = ["_file", "Cliente", "Contrato", "Identificacion", "NoSolicitud",
+                              "TipoCupon", "ValorAPagar", "NoRefPago", "DirCliente", "ValidoHasta",
+                              "CodigoBarraRaw", "CodigoBarraLimpio", "error"]
+                cols = [c for c in cols_order if c in df.columns] + [c for c in df.columns if c not in cols_order]
+                df = df[cols]
+
+                if os.path.exists(output_file):
+                    existing_df = pd.read_excel(output_file)
+                    combined_df = pd.concat([existing_df, df], ignore_index=True)
+                    combined_df.to_excel(output_file, index=False)
+                    self.log_message(f"🎉 ¡Datos agregados exitosamente!", "success")
+                else:
+                    df.to_excel(output_file, index=False)
+                    self.log_message(f"🎉 ¡Proceso completado exitosamente!", "success")
+
+                self.log_message(f"📊 Total de registros procesados: {len(data_list)}", "success")
+
+                if errors_count > 0 or scan_count > 0:
+                    if errors_count > 0:
+                        self.log_message(f"⚠️ Archivos con errores: {errors_count}", "warning")
+                    if scan_count > 0:
+                        self.log_message(f"📄 Archivos escaneados (omitidos): {scan_count}", "warning")
+
+                success_rate = ((total_files - errors_count - scan_count) / total_files) * 100
+
+                result = messagebox.askyesno("✅ Proceso Exitoso",
+                                           f"¡Proceso completado!\n\n"
+                                           f"📊 Registros procesados: {len(data_list)}\n"
+                                           f"✅ Archivos exitosos: {total_files - errors_count - scan_count}\n"
+                                           f"❌ Archivos con errores: {errors_count}\n"
+                                           f"📄 Archivos escaneados (omitidos): {scan_count}\n"
+                                           f"📈 Tasa de éxito: {success_rate:.1f}%\n"
+                                           f"📄 Archivo: {os.path.basename(output_file)}\n\n"
+                                           f"¿Deseas abrir la carpeta del archivo?")
+                if result:
+                    self.open_output_folder()
+            else:
+                self.log_message("❌ No se procesaron archivos exitosamente", "error")
+                messagebox.showwarning("⚠️ Sin Datos",
+                                     "No se pudo extraer datos de ningún archivo.\n\n"
+                                     "Verifica que los PDFs contengan el formato esperado.")
+        except Exception as e:
+            self.log_message(f"❌ Error al guardar resultados: {str(e)}", "error")
+            messagebox.showerror("❌ Error", f"Error al guardar los resultados:\n\n{str(e)}")
+        finally:
+            self._reset_ui()
+
+    def _reset_ui(self):
+        """Reset UI elements after processing."""
+        self.is_processing = False
+        self.start_button.config(text="▶️ Iniciar Extracción", state="normal")
+        self.progress_var.set(0)
+
+    def _update_progress_error(self, filename, error, progress, processed_count, total_files):
+        """Update progress bar and log for errors."""
+        self.progress_var.set(progress)
+        self.log_message(f"📖 ({processed_count}/{total_files}) Procesando: {filename}", "info")
+        self.log_message(f"   ❌ Error: {error}", "error")
+        self.root.update_idletasks()
+
+    def _update_progress_scan(self, filename, progress, processed_count, total_files):
+        """Update progress bar and log for scans."""
+        self.progress_var.set(progress)
+        self.log_message(f"📖 ({processed_count}/{total_files}) Procesando: {filename}", "info")
+        self.log_message("   📄 Archivo es un scan - procesando con OCR", "warning")
+        self.root.update_idletasks()
+
+    def _update_progress(self, filename, text, progress, processed_count, total_files):
+        """Update progress bar and log from main thread."""
+        self.progress_var.set(progress)
+        self.log_message(f"📖 ({processed_count}/{total_files}) Procesando: {filename}", "info")
+        if text:
+            self.log_message("   ✅ Datos extraídos", "success")
+        else:
+            self.log_message("   ❌ Error extrayendo texto", "error")
+        self.root.update_idletasks()
+
+    def open_output_folder(self):
+        try:
+            output_file = self.output_file.get().strip()
+            folder_path = os.path.dirname(output_file)
+            if os.name == 'nt':
+                os.startfile(folder_path)
+            elif os.name == 'posix':
+                os.system(f'open "{folder_path}"')
+        except Exception as e:
+            self.log_message(f"❌ No se pudo abrir la carpeta: {e}", "error")
+
+    def log_message(self, message, tipo="info"):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted_message = f"[{timestamp}] {message}\n"
+
+        self.log_area.config(state='normal')
+        self.log_area.insert(tk.END, formatted_message, tipo)
+        self.log_area.config(state='disabled')
+        self.log_area.see(tk.END)
+        self.root.update_idletasks()
+
+    def clear_log(self):
+        self.log_area.config(state='normal')
+        self.log_area.delete('1.0', tk.END)
+        self.log_area.config(state='disabled')
+
+    def show_help(self):
+        help_text = """
+🔧 GUÍA DE USO:
+
+1️⃣ Selecciona la carpeta que contiene los archivos PDF
+2️⃣ Elige dónde guardar el archivo Excel de salida
+3️⃣ Opcional: Activa guardar archivos OCR .txt para PDFs escaneados
+4️⃣ Haz clic en 'Iniciar Extracción' y espera
+
+📋 CAMPOS EXTRAÍDOS:
+• Cliente
+• Identificación
+• Contrato
+• Dirección
+• Valor a Pagar
+• No. Solicitud
+• No. Rel. Pago
+• Tipo de Cupón
+• Válido hasta
+• Código de Barras
+
+💡 CONSEJOS:
+• Los PDFs pueden ser digitales o escaneados (OCR automático)
+• Se pueden procesar múltiples archivos a la vez
+• Los datos se agregan al Excel/CSV existente
+• Para PDFs escaneados, el OCR puede tardar más tiempo
+        """
+        messagebox.showinfo("❓ Ayuda", help_text)
+
+    def select_ocr_text_dir(self):
+        d = filedialog.askdirectory(title="📁 Seleccionar carpeta para guardar archivos OCR (.txt)")
+        if d:
+            self.ocr_text_dir.set(d)
+
+    def show_about(self):
+        about_text = """
+📊 Extractor de Datos PDF → Excel v0.1.0
+
+🎯 CARACTERÍSTICAS:
+• Extracción automática de datos de PDFs
+• Soporte OCR para PDFs escaneados
+• Interfaz intuitiva y amigable
+• Procesamiento concurrente para escalabilidad
+• Barra de progreso en tiempo real
+• Registro detallado de actividades
+
+🛠️ TECNOLOGÍAS:
+• Python 3.x
+• pdfplumber (extracción de texto)
+• pytesseract + Tesseract OCR (PDFs escaneados)
+• pandas (manejo de datos)
+• tkinter (interfaz gráfica)
+
+        """
+        messagebox.showinfo("ℹ️ Acerca de", about_text)
 
     def cancel_processing(self):
         if messagebox.askyesno("Confirmar", "¿Deseas cancelar el proceso en curso?"):
             self.stop_event.set()
-            self.cancel_btn.config(state="disabled")
-            self.logbox.insert("end", "Cancelando... por favor espera.\n")
-            self.logbox.see("end")
+            self.log_message("Cancelando... por favor espera.", "warning")
+
+    def show_completion_dialog(self):
+        output_file = self.output_file.get().strip()
+        input_folder = self.input_folder.get().strip()
+
+        top = Toplevel(self.root)
+        top.title("Proceso Completado")
+        top.geometry("400x150")
+        top.transient(self.root)
+        top.grab_set()
+
+        Label(top, text="¿Qué desea hacer?", font=("Arial", 12)).pack(pady=10)
+
+        def open_folder():
+            import subprocess
+            import platform
+            try:
+                if platform.system() == "Windows":
+                    subprocess.run(["explorer", input_folder])
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.run(["open", input_folder])
+                else:  # Linux
+                    subprocess.run(["xdg-open", input_folder])
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo abrir la carpeta: {e}")
+            top.destroy()
+
+        def open_file():
+            import subprocess
+            import platform
+            try:
+                if platform.system() == "Windows":
+                    subprocess.run(["start", output_file], shell=True)
+                elif platform.system() == "Darwin":  # macOS
+                    subprocess.run(["open", output_file])
+                else:  # Linux
+                    subprocess.run(["xdg-open", output_file])
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo abrir el archivo: {e}")
+            top.destroy()
+
+        btn_frame = ttk.Frame(top)
+        btn_frame.pack(pady=20)
+        Button(btn_frame, text="Abrir carpeta de PDFs", command=open_folder).pack(side="left", padx=10)
+        Button(btn_frame, text="Abrir archivo Excel", command=open_file).pack(side="left", padx=10)
+        Button(btn_frame, text="Cerrar", command=top.destroy).pack(side="left", padx=10)
+
+        self.root.wait_window(top)
 
     # Polling for updates from worker
     def _poll_queues(self):
@@ -690,11 +1174,26 @@ class OCRGui:
                     self.cancel_btn.config(state="disabled")
                     self.logbox.insert("end", "Proceso terminado.\n")
                     self.logbox.see("end")
+                    # Show post-processing dialog
+                    self.show_completion_dialog()
         except queue.Empty:
             pass
 
         # re-schedule
         self.root.after(200, self._poll_queues)
+
+    def create_widgets(self):
+        main_frame = ttk.Frame(self.root, padding="20")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        title_label = ttk.Label(main_frame, text="📊 Extractor de Datos PDF → Excel", font=('Helvetica', 16, 'bold'), style='Title.TLabel')
+        title_label.pack(pady=(0, 20))
+
+        self.create_input_section(main_frame)
+        self.create_output_section(main_frame)
+        self.create_control_section(main_frame)
+        self.create_log_section(main_frame)
+        self.create_footer(main_frame)
 
 # ---------- Toplevel folder browser implementations ----------
 def open_folder_browser(parent, title="Seleccionar carpeta", start_path=None, only_directories=True):
@@ -985,6 +1484,96 @@ def open_save_browser(parent, title="Guardar archivo", start_path=None, suggeste
 
     parent.wait_window(top)
     return res["folder"], res["filename"]
+
+# ------------------------------------------------------------------
+#  Mini-GitHub updater  (public domain)
+# ------------------------------------------------------------------
+class GitHubUpdater:
+    """
+    Checks & applies new releases from
+    https://api.github.com/repos/OWNER/REPO/releases/latest
+    """
+    API_URL   = "https://api.github.com/repos/{owner}/{repo}/releases/latest"
+    OWNER     = "YOUR_GITHUB_USER"   # <── change here
+    REPO      = "YOUR_REPO_NAME"     # <── change here
+    VERSION   = "v0.1.0"             # <── current version string
+
+    def __init__(self, logger=None):
+        self.logger = logger or print
+
+    # --------------- public API -----------------
+    def check(self, on_complete=lambda ok, msg: None):
+        """Run in thread.  on_complete(True/False, message)"""
+        try:
+            latest = self._latest_release()
+            latest_tag = latest["tag_name"]
+            if latest_tag.lstrip("v") <= self.VERSION.lstrip("v"):
+                on_complete(False, f"Ya estás en la última versión ({self.VERSION})")
+                return
+
+            asset = self._choose_asset(latest)
+            if not asset:
+                on_complete(False, "No hay ZIP portable para esta plataforma")
+                return
+
+            on_complete(True, f"Nueva versión {latest_tag} disponible. Descargando…")
+            self._download_and_apply(asset["browser_download_url"], latest_tag)
+            on_complete(True, "Actualización aplicada. Reiniciando…")
+            self._restart()
+
+        except Exception as e:
+            on_complete(False, f"Error al buscar actualización: {e}")
+
+    # --------------- internals ------------------
+    def _latest_release(self):
+        url = self.API_URL.format(owner=self.OWNER, repo=self.REPO)
+        import requests
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        return r.json()
+
+    def _choose_asset(self, release):
+        """Return first ZIP asset (you can filter by name)."""
+        for a in release.get("assets", []):
+            if a["name"].lower().endswith(".zip"):
+                return a
+        return None
+
+    def _download_and_apply(self, zip_url, new_tag):
+        import requests
+        base = Path(sys.executable if getattr(sys, 'frozen', False) else __file__).resolve().parent
+        backup = base / "backup_before_update"
+        if backup.exists():
+            shutil.rmtree(backup)
+
+        # Descargar ZIP temporal
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+            self.logger(f"Descargando {zip_url}")
+            with requests.get(zip_url, stream=True, timeout=30) as r:
+                r.raise_for_status()
+                for chunk in r.iter_content(chunk_size=8192):
+                    tmp.write(chunk)
+            tmp.flush()
+
+            # Backup de la carpeta actual (sin el ZIP)
+            self.logger("Haciendo backup…")
+            shutil.copytree(base, backup, ignore=shutil.ignore_patterns("backup_before_update"))
+
+            # Extraer encima
+            self.logger("Extrayendo actualización…")
+            with zipfile.ZipFile(tmp.name, 'r') as zf:
+                zf.extractall(base)
+
+        # Guardar versión nueva
+        (base / "version.txt").write_text(new_tag, encoding="utf8")
+        self.logger("Actualización lista.")
+
+    def _restart(self):
+        """Re-launch the new EXE and exit current."""
+        exe = sys.executable
+        self.logger(f"Reiniciando {exe}")
+        subprocess.Popen([exe], cwd=Path(exe).parent)
+        os._exit(0)
 
 # ---------- Main ----------
 def main():
