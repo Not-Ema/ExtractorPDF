@@ -1,29 +1,67 @@
 import os, sys, platform, subprocess, tkinter.messagebox as mb
 
-# 1. Evitar ventana negra al ejecutar Tesseract
+# 1. Evitar ventana negra al ejecutar Tesseract (Windows)
 if platform.system() == "Windows":
     _orig = subprocess.Popen
-    subprocess.Popen = lambda *a, **k: _orig(*a, **k, creationflags=8)
+    # use creationflags=CREATE_NO_WINDOW para evitar consola
+    CREATE_NO_WINDOW = 0x08000000
+    subprocess.Popen = lambda *a, **k: _orig(*a, **{**k, "creationflags": k.get("creationflags", CREATE_NO_WINDOW)})
 
-# 2. Carpeta donde está el .exe (o el .py en desarrollo)
-if getattr(sys, 'frozen', False):
-    # .exe compilado con Nuitka
-    BASE = os.path.dirname(os.path.abspath(sys.executable))
-else:
-    # script .py normal
-    BASE = os.path.dirname(os.path.abspath(__file__))
+# ---------- Determinar carpeta base (donde está el .exe o el .py) ----------
+def get_base_dir():
+    """
+    Devuelve la carpeta donde se encuentra el ejecutable en runtime:
+     - si está 'frozen' (compilado) -> carpeta del ejecutable
+     - si está en desarrollo -> carpeta del script
+    """
+    if getattr(sys, "frozen", False):
+        # .exe o carpeta standalone
+        return os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
 
-# 3. Construir ruta correctamente
-TESSERACT_EXE = os.path.join(BASE, "tesseract", "tesseract.exe")
+BASE = get_base_dir()
 
-# 4. Si no existe, avisamos y cerramos
-if not os.path.isfile(TESSERACT_EXE):
-    mb.showerror("Falta Tesseract", f"No se encuentra:\n{TESSERACT_EXE}")
+# ---------- Buscar tesseract.exe en ubicaciones razonables ----------
+def find_tesseract_exe(base):
+    candidates = [
+        os.path.join(base, "tesseract", "tesseract.exe"),   # ./tesseract/tesseract.exe
+        os.path.join(base, "tesseract.exe"),               # ./tesseract.exe
+        os.path.join(base, "bin", "tesseract.exe"),        # ./bin/tesseract.exe (por si usas estructura distinta)
+    ]
+
+    # si está dentro de un bundle temporal (onefile extract), también revisar sys._MEIPASS si existe
+    if hasattr(sys, "_MEIPASS"):
+        meipass = getattr(sys, "_MEIPASS")
+        candidates.extend([
+            os.path.join(meipass, "tesseract", "tesseract.exe"),
+            os.path.join(meipass, "tesseract.exe")
+        ])
+
+    # comprobar PATH como último recurso
+    for c in candidates:
+        c = os.path.normpath(c)
+        if os.path.isfile(c):
+            return c
+
+    # buscar en PATH
+    for path_dir in os.environ.get("PATH", "").split(os.pathsep):
+        p = os.path.join(path_dir, "tesseract.exe")
+        if os.path.isfile(p):
+            return p
+
+    return None
+
+TESSERACT_EXE = find_tesseract_exe(BASE)
+
+if not TESSERACT_EXE:
+    mb.showerror("Falta Tesseract", f"No se ha encontrado tesseract.exe en ninguna ubicación esperada.\n\nBuscado en:\n• {BASE}\\tesseract\\tesseract.exe\n• {BASE}\\tesseract.exe\n• PATH\n\nColoca la carpeta 'tesseract' junto al .exe o instala tesseract en el PATH.")
     sys.exit(1)
 
-# 5. Decirle a pytesseract dónde está
+# ------------- Asignar comando a pytesseract (después de importar pytesseract) -------------
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_EXE
+pytesseract.pytesseract.tesseract_cmd = os.path.normpath(TESSERACT_EXE)
+
 
 """
 pdf_ocr_gui.py
@@ -1552,9 +1590,9 @@ import sys
 class GitHubUpdater:
     """
     Checks & applies new releases from
-    https://github.com/repos/OWNER/REPO/releases/latest
+    https://github.com/OWNER/REPO/releases/latest
     """
-    API_URL   = "https://github.com/repos/{owner}/{repo}/releases/latest"
+    API_URL   = "https://github.com/{owner}/{repo}/releases/latest"
     OWNER     = "Not-Ema"   # <── change here
     REPO      = "ExtractorPDF"     # <── change here
     VERSION   = "v0.1.0"             # <── current version string
