@@ -1590,9 +1590,9 @@ import sys
 class GitHubUpdater:
     """
     Checks & applies new releases from
-    https://github.com/OWNER/REPO/releases/latest
+    https://github.com/OWNER/REPO/releases/tag/Tag
     """
-    API_URL   = "https://github.com/{owner}/{repo}/releases/latest"
+    API_URL   = "https://github.com/{owner}/{repo}/releases/tag/Tag"
     OWNER     = "Not-Ema"   # <── change here
     REPO      = "ExtractorPDF"     # <── change here
     VERSION   = "v0.1.0"             # <── current version string
